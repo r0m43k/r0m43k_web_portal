@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import health, register, me
 from .auth_views import CsrfView, LoginView, RefreshView, LogoutView
+from .video_views import VideoListView
 
 urlpatterns = [
     path("health/", health),
@@ -10,5 +11,7 @@ urlpatterns = [
     path("auth/refresh/", RefreshView.as_view()),
     path("auth/logout/", LogoutView.as_view()),
     path("auth/me/", me),
+    path("health/", health),
+    path("videos/", VideoListView.as_view()),
 ]
 

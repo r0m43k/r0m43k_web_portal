@@ -16,6 +16,9 @@ services:
       - db
     environment:
       DJANGO_SETTINGS_MODULE: config.settings
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
     restart: unless-stopped
 
 
@@ -26,6 +29,8 @@ services:
       - "80:80"
     volumes:
       - ./nginx:/etc/nginx/conf.d:ro
+      - media_data:/media:ro
+      - static_data:/static:ro
     depends_on:
       - backend
     restart: unless-stopped
@@ -33,4 +38,5 @@ services:
 #хранилище БД
 volumes:
   pg_data:
-
+  media_data:
+  static_data:

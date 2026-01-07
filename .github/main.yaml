@@ -1,0 +1,61 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    env:
+      SUPERUSER_USERNAME: ${{ secrets.SUPERUSER_USERNAME }}
+      SUPERUSER_PASSWORD: ${{ secrets.SUPERUSER_PASSWORD }}
+      SUPERUSER_EMAIL:    ${{ secrets.SUPERUSER_EMAIL }}
+
+      POSTGRES_DB:       ${{ secrets.POSTGRES_DB }}
+      POSTGRES_USER:     ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD:${{ secrets.POSTGRES_PASSWORD }}
+      SECRET_KEY:        ${{ secrets.SECRET_KEY }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build & start containers
+        run: |
+          docker compose up -d --build
+          sleep 15
+
+      - name: Migrate DB
+        run: |
+          docker compose exec -T backend python manage.py migrate
+
+      - name: Create superuser from env
+        run: |
+          docker compose exec -T backend python manage.py createsu
+
+      - name: Health check
+        run: |
+          curl -f http://localhost/api/health/
+
+      - name: Auth flow (csrf → login → me)
+        run: |
+          curl -i http://localhost/api/auth/csrf/
+
+          curl -i -c cookies.txt -b cookies.txt \
+            -H "Content-Type: application/json" \
+            -X POST http://localhost/api/auth/login/ \
+            -d "{\"username\":\"${SUPERUSER_USERNAME}\",\"password\":\"${SUPERUSER_PASSWORD}\"}"
+
+          curl -i -c cookies.txt -b cookies.txt \
+            http://localhost/api/auth/me/
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs backend
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down
