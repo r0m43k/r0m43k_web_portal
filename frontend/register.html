@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Register</title>
+</head>
+<body>
+  <h1>Register</h1>
+
+  <form id="f">
+    <input name="username" placeholder="username" required />
+    <input name="password" type="password" placeholder="password (min 8)" required />
+    <button type="submit">Create account</button>
+  </form>
+
+  <p id="msg"></p>
+  <p><a href="/login.html">Login</a></p>
+
+  <script>
+    async function csrf() {
+      await fetch("/api/auth/csrf/", { credentials: "include" });
+    }
+
+    document.getElementById("f").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = { username: fd.get("username"), password: fd.get("password") };
+
+      try {
+        await csrf();
+        const r = await fetch("/api/auth/register/", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const text = await r.text();
+        if (!r.ok) throw new Error(text);
+
+        document.getElementById("msg").textContent = "OK: " + text;
+
+      } catch (err) {
+        document.getElementById("msg").textContent = "ERR: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>

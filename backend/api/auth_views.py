@@ -9,6 +9,25 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = (request.data.get("username") or "").strip()
+        password = request.data.get("password") or ""
+
+        if not username or not password:
+            return Response({"detail": "username and password required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(password) < 8:
+            return Response({"detail": "password too short (min 8)"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "username already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(username=username, password=password)
+        return Response({"id": user.id, "username": user.username}, status=status.HTTP_201_CREATED)
+
 COOKIE_ACCESS = "access"
 COOKIE_REFRESH = "refresh"
 

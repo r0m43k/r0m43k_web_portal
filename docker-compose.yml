@@ -31,6 +31,7 @@ services:
       - ./nginx:/etc/nginx/conf.d:ro
       - media_data:/media:ro
       - static_data:/static:ro
+      - ./frontend:/usr/share/nginx/html:ro
     depends_on:
       - backend
     restart: unless-stopped
