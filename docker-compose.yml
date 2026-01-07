@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -16,12 +17,14 @@ services:
       - db
     environment:
       DJANGO_SETTINGS_MODULE: config.settings
-    volumes:
-      - media_data:/app/media
-      - static_data:/app/staticfiles
+      PYTHONUNBUFFERED: "1"
+    command: >
+      sh -lc "
+        python manage.py migrate &&
+        python manage.py createsu &&
+        gunicorn config.wsgi:application --bind 0.0.0.0:8000
+      "
     restart: unless-stopped
-
-
 
   nginx:
     image: nginx:1.25-alpine
@@ -29,15 +32,10 @@ services:
       - "80:80"
     volumes:
       - ./nginx:/etc/nginx/conf.d:ro
-      - media_data:/media:ro
-      - static_data:/static:ro
       - ./frontend:/usr/share/nginx/html:ro
     depends_on:
       - backend
     restart: unless-stopped
 
-#хранилище БД
 volumes:
   pg_data:
-  media_data:
-  static_data:
