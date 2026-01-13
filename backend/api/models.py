@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-from django.utils import timezone  # <-- добавь
+from django.utils import timezone
 
 class Video(models.Model):
     class Status(models.TextChoices):
@@ -25,3 +25,16 @@ class Video(models.Model):
         if self.status != self.Status.APPROVED:
             self.published_at = None
         super().save(*args, **kwargs)
+
+class HeroVideo(models.Model):
+    title = models.CharField(max_length=200, blank=True)
+    file = models.FileField(upload_to="hero/")
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Hero video"
+        verbose_name_plural = "Hero video"
+
+    def __str__(self):
+        return self.title or f"Hero video #{self.pk}"

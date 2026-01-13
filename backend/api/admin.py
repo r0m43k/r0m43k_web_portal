@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Video
+from .models import HeroVideo
 
 @admin.action(description="Approve selected videos")
 def approve_videos(modeladmin, request, queryset):
@@ -16,3 +17,8 @@ class VideoAdmin(admin.ModelAdmin):
     search_fields = ("title", "owner__username")
     readonly_fields = ("created_at", "published_at")
     actions = [approve_videos, reject_videos]
+
+@admin.register(HeroVideo)
+class HeroVideoAdmin(admin.ModelAdmin):
+    list_display = ("id", "title", "is_active", "updated_at")
+    list_filter = ("is_active",)

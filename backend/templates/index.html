@@ -10,7 +10,8 @@
 {% for video in videos %}
     <h3>{{ video.title }}</h3>
 
-    <video width="400" controls>
+    <video width="400" controls>docker compose exec backend sh -lc "ls -la /app/api/migrations && echo '---' && sed -n '1,200p' /app/api/migrations/0001_initial.py"
+
         <source src="{{ video.video.url }}" type="video/mp4">
     </video>
 

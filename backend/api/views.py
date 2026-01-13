@@ -3,6 +3,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .models import HeroVideo
 
 @api_view(["GET"])
 def health(request):
@@ -28,3 +31,20 @@ def register(request):
 def me(request):
     u = request.user
     return Response({"id": u.id, "username": u.username})
+
+class HeroVideoView(APIView):
+    def get(self, request):
+        hero = (
+            HeroVideo.objects
+            .filter(is_active=True)
+            .order_by("-updated_at")
+            .first()
+        )
+
+        if not hero:
+            return Response({"file_url": None})
+
+        return Response({
+            "file_url": request.build_absolute_uri(hero.file.url),
+            "title": hero.title,
+        })
