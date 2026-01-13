@@ -2,36 +2,50 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Video Platform</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>r0m43k video</title>
   <link rel="stylesheet" href="/css/main.css" />
 </head>
 <body>
 
-  <section class="hero">
-    <video
-      class="hero__video"
-      autoplay
-      muted
-      loop
-      playsinline
-      preload="auto"
-    ></video>
-
-    <div class="hero__overlay"></div>
-
-    <div class="hero__content">
-      <h1>r0m43k video</h1>
-      <p>Видеоплатформа</p>
-      <a href="#feed" class="hero__btn">Смотреть</a>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__title">r0m43k video</div>
+      <div class="brand__subtitle">hero is post #0</div>
     </div>
-  </section>
 
-  <main id="feed" class="container">
-    <h2>Лента</h2>
-    <div id="app">Загрузка…</div>
+    <div class="topbar__actions">
+      <a class="btn btn--ghost" href="/login.html" id="loginBtn">Войти</a>
+      <button class="btn btn--ghost" id="logoutBtn" hidden>Выйти</button>
+    </div>
+  </header>
+
+  <main class="feed" id="feed" aria-live="polite">
+
+    <!-- HERO как первый экран ленты -->
+    <section class="post post--hero" id="heroPost">
+      <video id="heroVideo" class="post__video" autoplay muted loop playsinline preload="auto"></video>
+
+      <div class="post__ui">
+        <div class="post__meta">
+          <div class="post__title">Видеоплатформа</div>
+          <div class="post__sub">Свайпни вниз или нажми “Смотреть”</div>
+        </div>
+
+        <div class="post__actions">
+          <button class="pill" type="button" id="startBtn">▶</button>
+        </div>
+      </div>
+
+      <div class="hero-hint">↑ hero / ↓ лента</div>
+    </section>
+
+    <!-- дальше JS добавит посты с видео -->
   </main>
 
+  <div id="sentinel" class="sentinel"></div>
+
+  <script src="/js/auth.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

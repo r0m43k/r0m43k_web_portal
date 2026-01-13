@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "api",
     "rest_framework_simplejwt.token_blacklist",
-    "videos", 
 ]
 TEMPLATES = [
     {
@@ -74,6 +73,8 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "api.jwt_cookie_auth.CookieJWTAuthentication",
     ),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 6,
 }
 
 SESSION_COOKIE_SECURE = ENV == "prod"

@@ -2,83 +2,51 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Login</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 420px; margin: 40px auto; padding: 0 16px; }
-    input, button { width: 100%; padding: 12px; margin: 8px 0; }
-    .row { display:flex; gap:10px; }
-    .row > * { flex:1; }
-    pre { background:#f6f6f6; padding:12px; overflow:auto; }
-  </style>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Вход</title>
+  <link rel="stylesheet" href="/css/main.css" />
 </head>
-<body>
-  <h1>Вход</h1>
+<body class="auth-page">
 
-  <label>Username</label>
-  <input id="u" autocomplete="username" />
+  <div class="auth-card">
+    <h1 class="auth-title">Вход</h1>
 
-  <label>Password</label>
-  <input id="p" type="password" autocomplete="current-password" />
+    <form id="loginForm" class="auth-form">
+      <label class="field">
+        <span>Логин</span>
+        <input name="username" autocomplete="username" required />
+      </label>
 
-  <button id="login">Login</button>
+      <label class="field">
+        <span>Пароль</span>
+        <input name="password" type="password" autocomplete="current-password" required />
+      </label>
 
-  <div class="row">
-    <button id="me">/me</button>
-    <button id="logout">Logout</button>
+      <button class="btn btn--primary" type="submit">Войти</button>
+      <div class="auth-error" id="err"></div>
+    </form>
+
+    <div class="auth-links">
+      <a href="/register.html">Создать аккаунт</a>
+      <a href="/">На главную</a>
+    </div>
   </div>
 
-  <p><a href="/register.html">Регистрация</a></p>
+  <script src="/js/auth.js"></script>
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const err = document.getElementById("err");
+      err.textContent = "";
 
-  <pre id="out"></pre>
+      const fd = new FormData(e.target);
+      const username = fd.get("username");
+      const password = fd.get("password");
 
-<script>
-const out = (x) => document.getElementById("out").textContent =
-  (typeof x === "string") ? x : JSON.stringify(x, null, 2);
-
-async function csrf() {
-  const r = await fetch("/api/auth/csrf/", { credentials: "include" });
-  const j = await r.json();
-  return j.csrfToken;
-}
-
-document.getElementById("login").onclick = async () => {
-  try {
-    const token = await csrf();
-    const r = await fetch("/api/auth/login/", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": token
-      },
-      body: JSON.stringify({
-        username: document.getElementById("u").value,
-        password: document.getElementById("p").value
-      })
+      const ok = await Auth.login(username, password);
+      if (ok) location.href = "/";
+      else err.textContent = "Неверный логин/пароль или сервер недоступен.";
     });
-    out({ status: r.status, body: await r.json() });
-  } catch (e) { out(String(e)); }
-};
-
-document.getElementById("me").onclick = async () => {
-  try {
-    const r = await fetch("/api/auth/me/", { credentials: "include" });
-    out({ status: r.status, body: await r.json() });
-  } catch (e) { out(String(e)); }
-};
-
-document.getElementById("logout").onclick = async () => {
-  try {
-    const token = await csrf();
-    const r = await fetch("/api/auth/logout/", {
-      method: "POST",
-      credentials: "include",
-      headers: { "X-CSRFToken": token }
-    });
-    out({ status: r.status, body: await r.json() });
-  } catch (e) { out(String(e)); }
-};
-</script>
+  </script>
 </body>
 </html>
