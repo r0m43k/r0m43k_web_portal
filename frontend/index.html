@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Video feed</title>
+  <style>
+    body { margin:0; font-family: system-ui; background:#111; color:#fff; }
+    .wrap { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+    video { width: 100%; border-radius: 14px; background:#000; }
+    .title { margin: 12px 0 24px; opacity:.9; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Лента</h1>
+    <div id="app">Загрузка…</div>
+  </div>
+
+<script>
+  async function main() {
+    const app = document.getElementById("app");
+    const res = await fetch("/api/videos/");
+    const data = await res.json();
+    const items = Array.isArray(data) ? data : (data.results || []);
+    if (!items.length) {
+      app.textContent = "Нет видео (или оно не approved).";
+      return;
+    }
+
+    const v = items[0];
+    const src = v.file_url; // <-- ВАЖНО
+
+    app.innerHTML = `
+      <div class="title">${v.title ?? "Без названия"}</div>
+      <video src="${src}" controls autoplay muted loop playsinline></video>
+    `;
+  }
+  main();
+</script>
+
+</body>
+</html>

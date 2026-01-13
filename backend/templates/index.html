@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Feed</title>
+</head>
+<body>
+
+<h1>Video feed</h1>
+
+{% for video in videos %}
+    <h3>{{ video.title }}</h3>
+
+    <video width="400" controls>
+        <source src="{{ video.video.url }}" type="video/mp4">
+    </video>
+
+    <p>Likes: {{ video.likes.count }}</p>
+
+    <hr>
+{% empty %}
+    <p>No videos yet</p>
+{% endfor %}
+
+</body>
+</html>

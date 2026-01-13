@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sign in</title>
+</head>
+<body>
+
+<h1>Sign in</h1>
+
+<form method="post" action="/signin">
+  {% csrf_token %}
+  <div>
+    <input name="username" placeholder="username" value="{{ form.username.value|default:'' }}" />
+    {% for e in form.username.errors %}
+      <div style="color:red;">{{ e }}</div>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:8px;">
+    <input name="password" type="password" placeholder="password" />
+    {% for e in form.password.errors %}
+      <div style="color:red;">{{ e }}</div>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:10px;">
+    <button type="submit">Create account</button>
+  </div>
+</form>
+
+<p><a href="/login">Already have account? Login</a></p>
+<p><a href="/">Back to feed</a></p>
+
+</body>
+</html>

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone  # <-- добавь
 
 class Video(models.Model):
     class Status(models.TextChoices):
@@ -17,3 +18,10 @@ class Video(models.Model):
 
     class Meta:
         ordering = ["-published_at", "-created_at"]
+
+    def save(self, *args, **kwargs):
+        if self.status == self.Status.APPROVED and self.published_at is None:
+            self.published_at = timezone.now()
+        if self.status != self.Status.APPROVED:
+            self.published_at = None
+        super().save(*args, **kwargs)
