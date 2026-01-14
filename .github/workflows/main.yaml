@@ -107,6 +107,11 @@ jobs:
       - build_gateway_and_push_to_docker_hub
 
     steps:
+      - name: Show repo files
+        run: |
+          ls -la
+          ls -la nginx || true
+
       - name: Copy deploy files via ssh
         uses: appleboy/scp-action@master
         with:
