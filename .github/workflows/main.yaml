@@ -27,36 +27,10 @@ jobs:
         run: |
           python -m flake8 backend/
 
-  build_postgres_and_push_to_docker_hub:
-    name: Build and push postgres image
-    runs-on: ubuntu-latest
-    needs: tests
-
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build & push gateway image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./nginx/
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/postgres:16-alpine:latest
-
   build_and_push_backend_to_docker_hub:
     name: Build and push backend image
     runs-on: ubuntu-latest
     needs: 
-      - build_postgres_and_push_to_docker_hub
       - tests
 
     steps:
@@ -137,7 +111,6 @@ jobs:
       - build_and_push_backend_to_docker_hub
       - build_and_push_frontend_to_docker_hub
       - build_gateway_and_push_to_docker_hub
-      - build_postgres_and_push_to_docker_hub
 
     steps:
       - name: Checkout repo
@@ -149,8 +122,8 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.production.yml"
-          target: "/home/${{ secrets.USERNAME }}/Kittygram"
+          source: "docker-compose.yml"
+          target: "/home/${{ secrets.USERNAME }}/DroneHub"
 
       - name: Executing remote ssh commands to deploy
         uses: appleboy/ssh-action@master
@@ -185,10 +158,6 @@ jobs:
         run: |
           curl -sS -o /dev/null -w "%{http_code}\n" "http://$HOST/" | grep -qE "200"
 
-      - name: Check API /api/cats/ returns 200
-        run: |
-          curl -sS -o /dev/null -w "%{http_code}\n" "http://$HOST/api" | grep -qE "200"
-
   telegram-notify:
     runs-on: ubuntu-latest
     needs:
@@ -199,4 +168,4 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "задеплоено))"
+          message: "все готово босс))"
