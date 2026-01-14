@@ -8,7 +8,6 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -16,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install lint deps
         run: |
@@ -30,9 +29,7 @@ jobs:
   build_and_push_backend_to_docker_hub:
     name: Build and push backend image
     runs-on: ubuntu-latest
-    needs: 
-      - tests
-
+    needs: tests
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
@@ -57,7 +54,6 @@ jobs:
     name: Build and push frontend image
     runs-on: ubuntu-latest
     needs: tests
-
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
@@ -82,7 +78,6 @@ jobs:
     name: Build and push gateway image
     runs-on: ubuntu-latest
     needs: tests
-
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
@@ -103,9 +98,15 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/r0m43k_web_portal-gateway:latest
 
-  
-
   deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    needs:
+      - build_and_push_backend_to_docker_hub
+      - build_and_push_frontend_to_docker_hub
+      - build_gateway_and_push_to_docker_hub
+
+    steps:
       - name: Copy deploy files via ssh
         uses: appleboy/scp-action@master
         with:
@@ -123,7 +124,6 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             set -euo pipefail
-
             sudo apt-get update -y
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
             sudo systemctl enable --now docker || true
@@ -134,25 +134,19 @@ jobs:
             cat > .env <<'EOF'
             ENV=prod
             DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-
             POSTGRES_DB=${{ secrets.POSTGRES_DB }}
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             POSTGRES_HOST=postgres
             POSTGRES_PORT=5432
-
             SECRET_KEY=${{ secrets.DJANGO_KEY }}
-
             ALLOWED_HOSTS=r0m43k.live,www.r0m43k.live,${{ secrets.HOST }},localhost,127.0.0.1
             CSRF_TRUSTED_ORIGINS=https://r0m43k.live,https://www.r0m43k.live,http://${{ secrets.HOST }}
-
             DJANGO_SETTINGS_MODULE=config.settings
-
             SUPERUSER_USERNAME=${{ secrets.ADMIN_USERNAME }}
             SUPERUSER_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
             EOF
 
-            # Выбираем конфиг nginx в зависимости от наличия сертификата
             if [ -f "./certbot/conf/live/r0m43k.live/fullchain.pem" ]; then
               cp -f ./nginx/default.https.conf ./nginx/default.conf
             else
@@ -163,13 +157,11 @@ jobs:
             sudo docker compose -f docker-compose.production.yml down
             sudo docker compose -f docker-compose.production.yml up -d --remove-orphans
 
-            # Если сертификата нет — выпускаем (certbot НЕ запущен как сервис, поэтому лока нет)
             if [ ! -f "./certbot/conf/live/r0m43k.live/fullchain.pem" ]; then
               sudo docker compose -f docker-compose.production.yml run --rm --profile certbot certbot \
                 certonly --webroot --webroot-path=/var/www/certbot \
                 -d r0m43k.live -d www.r0m43k.live \
                 --email ${{ secrets.CERTBOT_EMAIL }} --agree-tos --no-eff-email
-
               cp -f ./nginx/default.https.conf ./nginx/default.conf
               sudo docker compose -f docker-compose.production.yml restart gateway
             fi
@@ -190,7 +182,6 @@ jobs:
       - name: Check API health returns 200
         run: |
           curl -sS -o /dev/null -w "%{http_code}\n" "http://$HOST/api/health/" | grep -qE "200"
-
 
   telegram-notify:
     runs-on: ubuntu-latest
