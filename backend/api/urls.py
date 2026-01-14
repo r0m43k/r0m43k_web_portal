@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import health, register, me
-from .auth_views import CsrfView, LoginView, RefreshView, LogoutView, RegisterView
+from .auth_views import CsrfView, LoginView, RefreshView, LogoutView
 from .video_views import VideoListView
 from .views import HeroVideoView
 
