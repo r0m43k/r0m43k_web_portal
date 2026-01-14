@@ -132,22 +132,25 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+            sudo apt update
+            sudo apt upgrade
+            sudo apt install -y docker-compose
             cd /home/${{ secrets.USERNAME }}/DroneHub
             sudo apt install docker.io -y 
-            sudo docker compose -f docker-compose.production.yml pull
-            sudo docker compose -f docker-compose.production.yml down
-            sudo docker compose -f docker-compose.production.yml up -d
+            sudo docker-compose -f docker-compose.production.yml pull
+            sudo docker-compose -f docker-compose.production.yml down
+            sudo docker-compose -f docker-compose.production.yml up -d
 
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
+            sudo docker-compose -f docker-compose.production.yml exec -T backend python manage.py migrate
+            sudo docker-compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
 
-            sudo docker compose -f docker-compose.production.yml restart gateway
+            sudo docker-compose -f docker-compose.production.yml restart gateway
 
             
             ADMIN_USERNAME="${{ secrets.ADMIN_USERNAME }}"
             ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}"
 
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py shell -c "from django.contrib.auth.models import User; u, _ = User.objects.get_or_create(username='$ADMIN_USERNAME'); u.is_superuser=True; u.is_staff=True; u.set_password('$ADMIN_PASSWORD'); u.save()"
+            sudo docker-compose -f docker-compose.production.yml exec -T backend python manage.py shell -c "from django.contrib.auth.models import User; u, _ = User.objects.get_or_create(username='$ADMIN_USERNAME'); u.is_superuser=True; u.is_staff=True; u.set_password('$ADMIN_PASSWORD'); u.save()"
 
   post_deploy_tests:
     runs-on: ubuntu-latest
