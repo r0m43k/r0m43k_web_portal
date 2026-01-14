@@ -107,6 +107,9 @@ jobs:
       - build_gateway_and_push_to_docker_hub
 
     steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      
       - name: Show repo files
         run: |
           ls -la
