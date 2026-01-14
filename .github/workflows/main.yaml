@@ -141,23 +141,23 @@ jobs:
             mkdir -p /home/${{ secrets.USERNAME }}/DroneHub
             cd /home/${{ secrets.USERNAME }}/DroneHub
 
-            cat > .env << 'EOF'
-              ENV=prod #заменить на проде на prod
-              POSTGRES_DB=${{secrets.POSTGRES_DB}}
-              POSTGRES_USER=${{secrets.POSTGRES_USER}}
-              POSTGRES_PASSWORD=${{secrets.POSTGRES_PASSWORD}}
-              POSTGRES_HOST=postgres
-              POSTGRES_PORT=5432
+            cat > .env <<'EOF'
+            ENV=prod
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            POSTGRES_HOST=postgres
+            POSTGRES_PORT=5432
 
-              SECRET_KEY=${{secrets.DJANGO_KEY}}
-              ALLOWED_HOSTS=localhost,127.0.0.1,${{secrets.HOST}}
-              CSRF_TRUSTED_ORIGINS=http://${{secrets.HOST}}/
-              DJANGO_SETTINGS_MODULE=config.settings
+            SECRET_KEY=${{ secrets.DJANGO_KEY }}
+            ALLOWED_HOSTS=localhost,127.0.0.1,${{ secrets.HOST }}
+            CSRF_TRUSTED_ORIGINS=http://${{ secrets.HOST }}
+            DJANGO_SETTINGS_MODULE=config.settings
 
+            SUPERUSER_USERNAME=${{ secrets.ADMIN_USERNAME }}
+            SUPERUSER_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            EOF
 
-              SUPERUSER_USERNAME=${{secrets.ADMIN_USERNAME}}
-              SUPERUSER_PASSWORD=${{secrets.ADMIN_PASSWORD}}
-              EOF
 
             sudo docker compose -f docker-compose.yml pull
             sudo docker compose -f docker-compose.yml down
