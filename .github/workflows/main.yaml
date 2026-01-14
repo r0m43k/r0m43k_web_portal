@@ -142,14 +142,23 @@ jobs:
             cd /home/${{ secrets.USERNAME }}/DroneHub
 
             cat > .env << 'EOF'
-              DEBUG=0
-              SECRET_KEY=${{ secrets.SECRET_KEY }}
-              DB_HOST=postgres
-              DB_NAME=${{ secrets.DB_NAME }}
-              DB_USER=${{ secrets.DB_USER }}
-              DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+              ENV=prod #заменить на проде на prod
+              POSTGRES_DB=${{secrets.POSTGRES_DB}}
+              POSTGRES_USER=${{secrets.POSTGRES_USER}}
+              POSTGRES_PASSWORD=${{secrets.POSTGRES_PASSWORD}}
+              POSTGRES_HOST=postgres
+              POSTGRES_PORT=5432
+
+              SECRET_KEY=${{secrets.DJANGO_KEY}}
+              ALLOWED_HOSTS=localhost,127.0.0.1,${{secrets.HOST}}
+              CSRF_TRUSTED_ORIGINS=http://${{secrets.HOST}}/
+              DJANGO_SETTINGS_MODULE=config.settings
+
+
+              SUPERUSER_USERNAME=${{secrets.ADMIN_USERNAME}}
+              SUPERUSER_PASSWORD=${{secrets.ADMIN_PASSWORD}}
               EOF
-              
+
             sudo docker compose -f docker-compose.yml pull
             sudo docker compose -f docker-compose.yml down
             sudo docker compose -f docker-compose.yml up -d --remove-orphans
@@ -184,4 +193,4 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "все готово босс))"
+          message: "все готово))"
