@@ -86,8 +86,8 @@ SESSION_COOKIE_SECURE = ENV == "prod"
 CSRF_COOKIE_SECURE = ENV == "prod"
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False
-SESSION_COOKIE_SAMESITE = "Strict" if ENV == "prod" else "Lax"
-CSRF_COOKIE_SAMESITE = "Strict" if ENV == "prod" else "Lax"
+SESSION_COOKIE_SAMESITE = "Lax" # "Strict" if ENV == "prod" else "Lax"
+CSRF_COOKIE_SAMESITE = "Lax" # "Strict" if ENV == "prod" else "Lax"
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),

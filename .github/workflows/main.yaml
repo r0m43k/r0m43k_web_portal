@@ -144,6 +144,7 @@ jobs:
             cat > .env <<'EOF'
             ENV=prod
             DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+
             POSTGRES_DB=${{ secrets.POSTGRES_DB }}
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
@@ -151,8 +152,10 @@ jobs:
             POSTGRES_PORT=5432
 
             SECRET_KEY=${{ secrets.DJANGO_KEY }}
-            ALLOWED_HOSTS=localhost,127.0.0.1,${{ secrets.HOST }}
-            CSRF_TRUSTED_ORIGINS=http://${{ secrets.HOST }}
+
+            ALLOWED_HOSTS=r0m43k.live,www.r0m43k.live,${{ secrets.HOST }},localhost,127.0.0.1
+            CSRF_TRUSTED_ORIGINS=https://r0m43k.live,https://www.r0m43k.live,http://${{ secrets.HOST }}
+
             DJANGO_SETTINGS_MODULE=config.settings
 
             SUPERUSER_USERNAME=${{ secrets.ADMIN_USERNAME }}
@@ -162,6 +165,7 @@ jobs:
             sudo docker compose -f docker-compose.production.yml pull
             sudo docker compose -f docker-compose.production.yml down
             sudo docker compose -f docker-compose.production.yml up -d --remove-orphans
+            sudo docker compose -f docker-compose.production.yml run --rm certbot
 
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput

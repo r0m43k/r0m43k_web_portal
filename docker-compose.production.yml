@@ -2,6 +2,7 @@ volumes:
   pg_data:
   media:
   static:
+  certbot_webroot:
 
 services:
   postgres:
@@ -32,8 +33,21 @@ services:
     volumes:
       - media:/srv/media:ro
       - static:/srv/static:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
     depends_on:
       - backend
       - frontend
     restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    command: >
+      certonly --webroot
+      --webroot-path=/var/www/certbot
+      -d r0m43k.live -d www.r0m43k.live
+      --email YOUR@email.com --agree-tos --no-eff-email
 
