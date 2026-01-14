@@ -106,23 +106,13 @@ jobs:
   
 
   deploy:
-    runs-on: ubuntu-latest
-    needs:
-      - build_and_push_backend_to_docker_hub
-      - build_and_push_frontend_to_docker_hub
-      - build_gateway_and_push_to_docker_hub
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Copy docker-compose.yml via ssh
+      - name: Copy deploy files via ssh
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.production.yml"
+          source: "docker-compose.production.yml,nginx/default.http.conf,nginx/default.https.conf"
           target: "/home/${{ secrets.USERNAME }}/DroneHub"
 
       - name: Executing remote ssh commands to deploy
@@ -136,9 +126,9 @@ jobs:
 
             sudo apt-get update -y
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
-
             sudo systemctl enable --now docker || true
-            mkdir -p /home/${{ secrets.USERNAME }}/DroneHub
+
+            mkdir -p /home/${{ secrets.USERNAME }}/DroneHub/nginx
             cd /home/${{ secrets.USERNAME }}/DroneHub
 
             cat > .env <<'EOF'
@@ -162,19 +152,33 @@ jobs:
             SUPERUSER_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
             EOF
 
+            # Выбираем конфиг nginx в зависимости от наличия сертификата
+            if [ -f "./certbot/conf/live/r0m43k.live/fullchain.pem" ]; then
+              cp -f ./nginx/default.https.conf ./nginx/default.conf
+            else
+              cp -f ./nginx/default.http.conf ./nginx/default.conf
+            fi
+
             sudo docker compose -f docker-compose.production.yml pull
             sudo docker compose -f docker-compose.production.yml down
             sudo docker compose -f docker-compose.production.yml up -d --remove-orphans
-            sudo docker compose -f docker-compose.production.yml run --rm certbot
+
+            # Если сертификата нет — выпускаем (certbot НЕ запущен как сервис, поэтому лока нет)
+            if [ ! -f "./certbot/conf/live/r0m43k.live/fullchain.pem" ]; then
+              sudo docker compose -f docker-compose.production.yml run --rm --profile certbot certbot \
+                certonly --webroot --webroot-path=/var/www/certbot \
+                -d r0m43k.live -d www.r0m43k.live \
+                --email ${{ secrets.CERTBOT_EMAIL }} --agree-tos --no-eff-email
+
+              cp -f ./nginx/default.https.conf ./nginx/default.conf
+              sudo docker compose -f docker-compose.production.yml restart gateway
+            fi
 
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
 
-            sudo docker compose -f docker-compose.production.yml restart gateway
-
             ADMIN_USERNAME="${{ secrets.ADMIN_USERNAME }}"
             ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}"
-
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py shell -c "from django.contrib.auth.models import User; u, _ = User.objects.get_or_create(username='$ADMIN_USERNAME'); u.is_superuser=True; u.is_staff=True; u.set_password('$ADMIN_PASSWORD'); u.save()"
 
   post_deploy_tests:
