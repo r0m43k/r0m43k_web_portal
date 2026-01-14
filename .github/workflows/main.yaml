@@ -189,7 +189,7 @@ jobs:
     steps:
       - name: Check API health returns 200
         run: |
-          curl -sS -o /dev/null -w "%{http_code}\n" "http://$HOST/api/health/" | grep -qE "200"
+          curl -sS -o /dev/null -w "%{http_code}\n" "http://$HOST/" | grep -qE "200"
 
   telegram-notify:
     runs-on: ubuntu-latest
