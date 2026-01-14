@@ -138,9 +138,18 @@ jobs:
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
 
             sudo systemctl enable --now docker || true
-
+            mkdir /home/${{ secrets.USERNAME }}/DroneHub
             cd /home/${{ secrets.USERNAME }}/DroneHub
 
+            cat > .env << 'EOF'
+              DEBUG=0
+              SECRET_KEY=${{ secrets.SECRET_KEY }}
+              DB_HOST=postgres
+              DB_NAME=${{ secrets.DB_NAME }}
+              DB_USER=${{ secrets.DB_USER }}
+              DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+              EOF
+              
             sudo docker compose -f docker-compose.yml pull
             sudo docker compose -f docker-compose.yml down
             sudo docker compose -f docker-compose.yml up -d --remove-orphans
