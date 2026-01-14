@@ -122,7 +122,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.yml"
+          source: "docker-compose.production.yml"
           target: "/home/${{ secrets.USERNAME }}/DroneHub"
 
       - name: Executing remote ssh commands to deploy
