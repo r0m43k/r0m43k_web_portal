@@ -1,4 +1,4 @@
-name: Main Kittygram workflow
+name: Main workflow
 
 on:
   push:
@@ -133,6 +133,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /home/${{ secrets.USERNAME }}/DroneHub
+            sudo apt install docker.io -y 
             sudo docker compose -f docker-compose.production.yml pull
             sudo docker compose -f docker-compose.production.yml down
             sudo docker compose -f docker-compose.production.yml up -d
