@@ -13,7 +13,7 @@ services:
       - pg_data:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    image: ${DOCKER_USERNAME}/r0m43k_web_portal-backend:latest
     env_file: .env
     depends_on:
       - postgres
@@ -27,11 +27,11 @@ services:
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60"
 
   frontend: 
-    build: ./frontend
+    image: ${DOCKER_USERNAME}/r0m43k_web_portal-frontend:latest
+    restart: unless-stopped
 
   gateway:
-    build:
-      context: ./nginx
+    image: ${DOCKER_USERNAME}/r0m43k_web_portal-gateway:latest
     ports:
       - "80:80"
     volumes:
@@ -40,3 +40,5 @@ services:
     depends_on:
       - backend
       - frontend
+    restart: unless-stopped
+    
