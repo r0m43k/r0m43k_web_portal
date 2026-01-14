@@ -1,8 +1,8 @@
 from django.urls import path
-from .views import health, register, me
-from .auth_views import CsrfView, LoginView, RefreshView, LogoutView
+
+from .auth_views import CsrfView, LoginView, LogoutView, RefreshView
 from .video_views import VideoListView
-from .views import HeroVideoView
+from .views import HeroVideoView, health, me, register
 
 urlpatterns = [
     path("health/", health),
@@ -16,4 +16,3 @@ urlpatterns = [
     path("videos/", VideoListView.as_view()),
     path("hero/", HeroVideoView.as_view()),
 ]
-

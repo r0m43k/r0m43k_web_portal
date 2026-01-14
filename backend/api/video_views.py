@@ -1,7 +1,9 @@
 from rest_framework import generics, permissions
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import FormParser, MultiPartParser
+
 from .models import Video
-from .serializers import VideoSerializer, VideoCreateSerializer
+from .serializers import VideoCreateSerializer, VideoSerializer
+
 
 class VideoListView(generics.ListCreateAPIView):
     def get_queryset(self):

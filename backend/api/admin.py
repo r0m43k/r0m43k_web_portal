@@ -1,8 +1,6 @@
 from django.contrib import admin
 
-from .models import Video
-
-from .models import HeroVideo
+from .models import HeroVideo, Video
 
 
 @admin.action(description="Approve selected videos")
@@ -18,13 +16,12 @@ def reject_videos(modeladmin, request, queryset):
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
     list_display = (
-        "id", 
-        "title", 
-        "owner", 
-        "status", 
-        "created_at", 
-        "published_at"
-    )
+        "id",
+        "title",
+        "owner",
+        "status",
+        "created_at",
+        "published_at")
     list_filter = ("status", "created_at", "published_at")
     search_fields = ("title", "owner__username")
     readonly_fields = ("created_at", "published_at")
@@ -35,4 +32,3 @@ class VideoAdmin(admin.ModelAdmin):
 class HeroVideoAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "is_active", "updated_at")
     list_filter = ("is_active",)
-    
