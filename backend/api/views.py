@@ -4,9 +4,21 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from .models import HeroVideo
+from .serializers import HeroVideoSerializer
 
+
+class HeroVideoView(APIView):
+    def get(self, request):
+        hero = HeroVideo.objects.order_by("-id").first()
+
+        if not hero:
+            return Response(
+                {"detail": "Hero video not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(HeroVideoSerializer(hero, context={"request": request}).data)
 
 @api_view(["GET"])
 def health(request):

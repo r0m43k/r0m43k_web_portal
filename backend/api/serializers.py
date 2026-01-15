@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from .models import HeroVideo
 from .models import Video
 
 
@@ -22,3 +22,9 @@ class VideoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
         fields = ["title", "file"]
+
+
+class HeroVideoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HeroVideo
+        fields = "__all__"

@@ -15,4 +15,5 @@ urlpatterns = [
     path("health/", health),
     path("videos/", VideoListView.as_view()),
     path("hero/", HeroVideoView.as_view()),
+    
 ]
