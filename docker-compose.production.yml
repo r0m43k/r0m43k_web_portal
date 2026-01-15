@@ -11,6 +11,7 @@ services:
     env_file: .env
     volumes:
       - pg_data:/var/lib/postgresql/data
+  restart: unless-stopped
 
   backend:
     image: ${DOCKER_USERNAME}/r0m43k_web_portal-backend:latest
@@ -21,8 +22,13 @@ services:
       - media:/app/media
       - static:/app/staticfiles
     command: >
-      gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 300
-
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 2
+      --threads 4
+      --worker-class gthread
+      --timeout 300
+    restart: unless-stopped
   frontend:
     image: ${DOCKER_USERNAME}/r0m43k_web_portal-frontend:latest
     restart: unless-stopped
@@ -33,8 +39,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - media:/srv/media:ro
-      - static:/srv/static:ro
+      - media:/srv/media
+      - static:/srv/static
       - certbot_www:/var/www/certbot
       - certbot_conf:/etc/letsencrypt
     depends_on:

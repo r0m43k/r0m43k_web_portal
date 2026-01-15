@@ -18,8 +18,8 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 FILE_UPLOAD_HANDLERS = [
     "django.core.files.uploadhandler.TemporaryFileUploadHandler",
 ]
-FILE_UPLOAD_MAX_MEMORY_SIZE = 0
-DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 1024  # 1GB (или оставь 500MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 1024
 
 
 DATABASES = {

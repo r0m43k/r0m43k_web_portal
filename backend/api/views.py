@@ -44,15 +44,17 @@ def me(request):
 
 
 class HeroVideoView(APIView):
-    def get(self, request):
-        hero = HeroVideo.objects.filter(is_active=True).order_by("-updated_at").first()
+    permission_classes = [AllowAny]
 
+    def get(self, request):
+        hero = HeroVideo.objects.last()
         if not hero:
-            return Response({"file_url": None})
+            return Response({"file": None, "poster": None}, status=200)
 
         return Response(
             {
-                "file_url": request.build_absolute_uri(hero.file.url),
-                "title": hero.title,
-            }
+                "file": hero.file.url if hero.file else None,
+                "poster": hero.poster.url if hero.poster else None,
+            },
+            status=200,
         )
