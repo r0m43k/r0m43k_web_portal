@@ -128,12 +128,13 @@ jobs:
 
             sudo docker compose -f docker-compose.production.yml pull
             sudo docker compose -f docker-compose.production.yml down
-            sudo docker compose -f docker-compose.production.yml up -d
+            sudo docker compose -f docker-compose.production.yml up -d --remove-orphans
 
-            # Убираем любые “висящие” certbot контейнеры (чтобы не было "Another instance")
-            sudo docker rm -f dronehub-certbot-1 2>/dev/null || true
 
-            # Если сертификата нет — получить
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
+            sudo docker compose -f docker-compose.production.yml restart backend gateway
+
             if [ ! -f "$(sudo docker volume inspect -f '{{.Mountpoint}}' dronehub_certbot_conf)/live/r0m43k.live/fullchain.pem" ]; then
               sudo docker compose -f docker-compose.production.yml --profile certbot run --rm certbot \
                 certonly --webroot --webroot-path=/var/www/certbot \
@@ -144,9 +145,6 @@ jobs:
             else
               sudo docker compose -f docker-compose.production.yml restart gateway
             fi
-
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
 
             ADMIN_USERNAME="${{ secrets.ADMIN_USERNAME }}"
             ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}"
