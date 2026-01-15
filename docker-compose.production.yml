@@ -28,6 +28,10 @@ services:
       --threads 4
       --worker-class gthread
       --timeout 300
+      --access-logfile -
+      --error-logfile -
+      --log-level debug
+      --capture-output
     restart: unless-stopped
   frontend:
     image: ${DOCKER_USERNAME}/r0m43k_web_portal-frontend:latest
