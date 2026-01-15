@@ -89,6 +89,7 @@ CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = "Lax"  # "Strict" if ENV == "prod" else "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"  # "Strict" if ENV == "prod" else "Lax"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),

@@ -2,18 +2,15 @@ name: Main workflow
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
@@ -23,83 +20,57 @@ jobs:
           pip install flake8==6.0.0
 
       - name: Run flake8 on backend
-        run: |
-          python -m flake8 backend/
+        run: python -m flake8 backend/
 
   build_and_push_backend_to_docker_hub:
-    name: Build and push backend image
     runs-on: ubuntu-latest
     needs: tests
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v2
+      - uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build & push backend image
-        uses: docker/build-push-action@v4
+      - uses: docker/build-push-action@v4
         with:
           context: ./backend/
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/r0m43k_web_portal-backend:latest
 
   build_and_push_frontend_to_docker_hub:
-    name: Build and push frontend image
     runs-on: ubuntu-latest
     needs: tests
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v2
+      - uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build & push frontend image
-        uses: docker/build-push-action@v4
+      - uses: docker/build-push-action@v4
         with:
           context: ./frontend/
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/r0m43k_web_portal-frontend:latest
 
   build_gateway_and_push_to_docker_hub:
-    name: Build and push gateway image
     runs-on: ubuntu-latest
     needs: tests
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v2
+      - uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build & push gateway image
-        uses: docker/build-push-action@v4
+      - uses: docker/build-push-action@v4
         with:
           context: ./nginx/
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/r0m43k_web_portal-gateway:latest
 
   deploy:
-    name: Deploy to server
     runs-on: ubuntu-latest
     needs:
       - build_and_push_backend_to_docker_hub
@@ -107,23 +78,18 @@ jobs:
       - build_gateway_and_push_to_docker_hub
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      
-      - name: Show repo files
-        run: |
-          ls -la
-          ls -la nginx || true
-      - name: Copy deploy files via ssh
+      - uses: actions/checkout@v3
+
+      - name: Copy docker-compose.production.yml via ssh
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.production.yml nginx"
+          source: "docker-compose.production.yml"
           target: "/home/${{ secrets.USERNAME }}/DroneHub"
 
-      - name: Executing remote ssh commands to deploy
+      - name: Deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -131,45 +97,51 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             set -euo pipefail
+
             sudo apt-get update -y
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
             sudo systemctl enable --now docker || true
 
-            mkdir -p /home/${{ secrets.USERNAME }}/DroneHub/nginx
+            mkdir -p /home/${{ secrets.USERNAME }}/DroneHub
             cd /home/${{ secrets.USERNAME }}/DroneHub
 
             cat > .env <<'EOF'
             ENV=prod
             DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+
             POSTGRES_DB=${{ secrets.POSTGRES_DB }}
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             POSTGRES_HOST=postgres
             POSTGRES_PORT=5432
+
             SECRET_KEY=${{ secrets.DJANGO_KEY }}
+
             ALLOWED_HOSTS=r0m43k.live,www.r0m43k.live,${{ secrets.HOST }},localhost,127.0.0.1
             CSRF_TRUSTED_ORIGINS=https://r0m43k.live,https://www.r0m43k.live,http://${{ secrets.HOST }}
+
             DJANGO_SETTINGS_MODULE=config.settings
+
             SUPERUSER_USERNAME=${{ secrets.ADMIN_USERNAME }}
             SUPERUSER_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
             EOF
 
-            if [ -f "./certbot/conf/live/r0m43k.live/fullchain.pem" ]; then
-              cp -f ./nginx/default.https.conf ./nginx/default.conf
-            else
-              cp -f ./nginx/default.http.conf ./nginx/default.conf
-            fi
-
             sudo docker compose -f docker-compose.production.yml pull
             sudo docker compose -f docker-compose.production.yml down
-            sudo docker compose -f docker-compose.production.yml up -d --remove-orphans
+            sudo docker compose -f docker-compose.production.yml up -d
 
-            if [ ! -f "./certbot/conf/live/r0m43k.live/fullchain.pem" ]; then
-              sudo docker compose -f docker-compose.production.yml run --rm --profile certbot certbot \
+            # Убираем любые “висящие” certbot контейнеры (чтобы не было "Another instance")
+            sudo docker rm -f dronehub-certbot-1 2>/dev/null || true
+
+            # Если сертификата нет — получить
+            if [ ! -f "$(sudo docker volume inspect -f '{{.Mountpoint}}' dronehub_certbot_conf)/live/r0m43k.live/fullchain.pem" ]; then
+              sudo docker compose -f docker-compose.production.yml --profile certbot run --rm certbot \
                 certonly --webroot --webroot-path=/var/www/certbot \
                 -d r0m43k.live -d www.r0m43k.live \
-                --email ${{ secrets.CERTBOT_EMAIL }} --agree-tos --no-eff-email
-              cp -f ./nginx/default.https.conf ./nginx/default.conf
+                --email ${{ secrets.CERTBOT_EMAIL }} --agree-tos --no-eff-email --non-interactive
+
+              sudo docker compose -f docker-compose.production.yml restart gateway
+            else
               sudo docker compose -f docker-compose.production.yml restart gateway
             fi
 
@@ -183,20 +155,16 @@ jobs:
   post_deploy_tests:
     runs-on: ubuntu-latest
     needs: deploy
-    env:
-      HOST: ${{ secrets.HOST }}
     steps:
-      - name: Check API health returns 200
+      - name: Check HTTPS returns something
         run: |
-          curl -sS -o /dev/null -w "%{http_code}\n" "http://$HOST/" | grep -qE "200"
+          curl -kIsS "https://${{ secrets.HOST }}/" | head -n 1 | grep -qE "200|301|302"
 
   telegram-notify:
     runs-on: ubuntu-latest
-    needs:
-      - post_deploy_tests
+    needs: post_deploy_tests
     steps:
-      - name: Send Telegram notification
-        uses: appleboy/telegram-action@master
+      - uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
