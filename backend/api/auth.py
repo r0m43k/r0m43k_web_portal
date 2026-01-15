@@ -31,26 +31,19 @@ class LoginView(APIView):
 
         user = authenticate(username=username, password=password)
         if not user:
-            return Response({"detail": "invalid credentials"},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
+            )
 
         refresh = RefreshToken.for_user(user)
         access = str(refresh.access_token)
 
         resp = Response({"ok": True})
         # max_age в секундах: access обычно 5-15 минут, refresh — дни
+        _set_cookie(resp, COOKIE_ACCESS, access, max_age=10 * 60, httponly=True)
         _set_cookie(
-            resp,
-            COOKIE_ACCESS,
-            access,
-            max_age=10 * 60,
-            httponly=True)
-        _set_cookie(
-            resp,
-            COOKIE_REFRESH,
-            str(refresh),
-            max_age=7 * 24 * 60 * 60,
-            httponly=True)
+            resp, COOKIE_REFRESH, str(refresh), max_age=7 * 24 * 60 * 60, httponly=True
+        )
         return resp
 
 
@@ -60,23 +53,20 @@ class RefreshView(APIView):
     def post(self, request):
         refresh_str = request.COOKIES.get(COOKIE_REFRESH)
         if not refresh_str:
-            return Response({"detail": "no refresh cookie"},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "no refresh cookie"}, status=status.HTTP_401_UNAUTHORIZED
+            )
 
         try:
             refresh = RefreshToken(refresh_str)
             access = str(refresh.access_token)
         except Exception:
-            return Response({"detail": "invalid refresh"},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "invalid refresh"}, status=status.HTTP_401_UNAUTHORIZED
+            )
 
         resp = Response({"ok": True})
-        _set_cookie(
-            resp,
-            COOKIE_ACCESS,
-            access,
-            max_age=10 * 60,
-            httponly=True)
+        _set_cookie(resp, COOKIE_ACCESS, access, max_age=10 * 60, httponly=True)
         return resp
 
 

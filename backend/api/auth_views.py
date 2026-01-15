@@ -36,9 +36,9 @@ class RegisterView(APIView):
             )
 
         user = User.objects.create_user(username=username, password=password)
-        return Response({"id": user.id,
-                         "username": user.username},
-                        status=status.HTTP_201_CREATED)
+        return Response(
+            {"id": user.id, "username": user.username}, status=status.HTTP_201_CREATED
+        )
 
 
 COOKIE_ACCESS = "access"
@@ -82,16 +82,15 @@ class LoginView(APIView):
 
         user = authenticate(username=username, password=password)
         if not user or not user.is_active:
-            return Response({"detail": "invalid credentials"},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
+            )
 
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
 
-        access_ttl = int(
-            settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
-        refresh_ttl = int(
-            settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+        access_ttl = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+        refresh_ttl = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
 
         resp = Response({"ok": True})
 
@@ -131,8 +130,9 @@ class RefreshView(APIView):
             old_refresh = RefreshToken(refresh_str)
             user_id = old_refresh.get("user_id")
             if not user_id:
-                return Response({"detail": "invalid refresh"},
-                                status=status.HTTP_401_UNAUTHORIZED)
+                return Response(
+                    {"detail": "invalid refresh"}, status=status.HTTP_401_UNAUTHORIZED
+                )
 
             user = User.objects.get(id=user_id, is_active=True)
 
@@ -145,13 +145,12 @@ class RefreshView(APIView):
             new_access = new_refresh.access_token
 
         except Exception:
-            return Response({"detail": "invalid refresh"},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "invalid refresh"}, status=status.HTTP_401_UNAUTHORIZED
+            )
 
-        access_ttl = int(
-            settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
-        refresh_ttl = int(
-            settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+        access_ttl = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+        refresh_ttl = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
 
         resp = Response({"ok": True})
         _set_cookie(

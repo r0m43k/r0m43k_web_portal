@@ -15,13 +15,7 @@ def reject_videos(modeladmin, request, queryset):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "title",
-        "owner",
-        "status",
-        "created_at",
-        "published_at")
+    list_display = ("id", "title", "owner", "status", "created_at", "published_at")
     list_filter = ("status", "created_at", "published_at")
     search_fields = ("title", "owner__username")
     readonly_fields = ("created_at", "published_at")

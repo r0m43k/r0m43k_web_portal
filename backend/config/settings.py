@@ -10,9 +10,7 @@ DEBUG = ENV != "prod"
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-CSRF_TRUSTED_ORIGINS = os.getenv(
-    "CSRF_TRUSTED_ORIGINS",
-    "http://localhost").split(",")
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -72,13 +70,8 @@ MIDDLEWARE = [
 ]
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "api.jwt_cookie_auth.CookieJWTAuthentication",
-    ),
-    "DEFAULT_PAGINATION_CLASS": (
-        "rest_framework.pagination."
-        "LimitOffsetPagination"
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("api.jwt_cookie_auth.CookieJWTAuthentication",),
+    "DEFAULT_PAGINATION_CLASS": ("rest_framework.pagination." "LimitOffsetPagination"),
     "PAGE_SIZE": 6,
 }
 

@@ -26,12 +26,14 @@ def register(request):
         )
 
     if User.objects.filter(username=username).exists():
-        return Response({"detail": "username already taken"},
-                        status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "username already taken"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     user = User.objects.create_user(username=username, password=password)
-    return Response({"id": user.id, "username": user.username},
-                    status=status.HTTP_201_CREATED)
+    return Response(
+        {"id": user.id, "username": user.username}, status=status.HTTP_201_CREATED
+    )
 
 
 @api_view(["GET"])
@@ -43,8 +45,7 @@ def me(request):
 
 class HeroVideoView(APIView):
     def get(self, request):
-        hero = HeroVideo.objects.filter(
-            is_active=True).order_by("-updated_at").first()
+        hero = HeroVideo.objects.filter(is_active=True).order_by("-updated_at").first()
 
         if not hero:
             return Response({"file_url": None})
