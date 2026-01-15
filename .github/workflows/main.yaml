@@ -98,14 +98,16 @@ jobs:
           script: |
             set -euo pipefail
 
-            sudo apt-get update -y
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
-            sudo systemctl enable --now docker || true
+            command -v docker >/dev/null 2>&1 || {
+              sudo apt-get update -y
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
+              sudo systemctl enable --now docker || true
+            }
 
             mkdir -p /home/${{ secrets.USERNAME }}/DroneHub
             cd /home/${{ secrets.USERNAME }}/DroneHub
 
-            cat > .env <<EOF
+            cat > .env <<'EOF'
             ENV=prod
             DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
 

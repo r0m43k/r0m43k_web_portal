@@ -1,4 +1,5 @@
 from django.contrib import admin
+
 from .models import HeroVideo, Video
 
 
@@ -19,6 +20,10 @@ class VideoAdmin(admin.ModelAdmin):
     search_fields = ("title", "owner__username")
     readonly_fields = ("created_at", "published_at")
     actions = [approve_videos, reject_videos]
+
+    class Media:
+        css = {"all": ("api/admin_spinner.css",)}
+        js = ("api/admin_spinner.js",)
 
 
 @admin.register(HeroVideo)
