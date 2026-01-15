@@ -21,16 +21,8 @@ class VideoAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "published_at")
     actions = [approve_videos, reject_videos]
 
-    class Media:
-        css = {"all": ("api/admin_spinner.css",)}
-        js = ("api/admin_spinner.js",)
-
 
 @admin.register(HeroVideo)
 class HeroVideoAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "is_active", "updated_at")
     list_filter = ("is_active",)
-
-    class Media:
-        css = {"all": ("api/admin_spinner.css",)}
-        js = ("api/admin_spinner.js",)
