@@ -19,23 +19,27 @@ async function loadHeroVideo() {
     const res = await fetch("/api/hero/", { credentials: "include" });
     if (!res.ok) return;
 
+    const data = await res.json();              
     const url = data.file_url || data.file;
     if (!url) return;
+
     heroVideo.src = url;
 
     const source = heroVideo.querySelector("source");
     if (source) source.src = url;
-    else heroVideo.src = url;
 
     heroVideo.loop = true;
     heroVideo.muted = true;
-    heroVideo.playsInline = true;
     heroVideo.autoplay = true;
+    heroVideo.preload = "auto";
+    heroVideo.setAttribute("playsinline", "");
+               
 
     heroVideo.load();
     heroVideo.play().catch(() => {});
   } catch {}
 }
+
 
 
   function escapeHtml(s) {
@@ -56,7 +60,7 @@ async function loadHeroVideo() {
     post.dataset.src = src;
 
     post.innerHTML = `
-      <video class="post__video" playsinline muted preload="metadata" loop></video>
+      <video class="post__video" playsinline muted preload="auto" loop></video>
 
       <div class="post__ui">
         <div class="post__meta">
@@ -75,6 +79,11 @@ async function loadHeroVideo() {
     const videoEl = post.querySelector(".post__video");
     videoEl.src = src;
     videoEl.loop = true;
+
+    videoEl.setAttribute("playsinline", "");
+    videoEl.addEventListener("loadedmetadata", () => {
+      try { videoEl.currentTime = 0.01; } catch {}
+    }, { once: true });
 
     post.addEventListener("click", () => {
       videoEl.muted = !videoEl.muted;

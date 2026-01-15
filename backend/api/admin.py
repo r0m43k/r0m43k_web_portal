@@ -21,7 +21,6 @@ class VideoAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "published_at")
     actions = [approve_videos, reject_videos]
 
-
 @admin.register(HeroVideo)
 class HeroVideoAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "is_active", "updated_at")
