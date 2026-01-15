@@ -3,11 +3,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!form) return;
 
   const overlay = document.createElement("div");
-  overlay.id = "admin-upload-overlay";
+  overlay.id = "upload-overlay";
   overlay.innerHTML = `
-    <div style="display:flex; flex-direction:column; align-items:center;">
-      <div id="admin-upload-spinner"></div>
-      <div id="admin-upload-text">Загружаю видео…</div>
+    <div class="box">
+      <div class="spinner"></div>
+      <div>Uploading... please wait</div>
     </div>
   `;
   document.body.appendChild(overlay);

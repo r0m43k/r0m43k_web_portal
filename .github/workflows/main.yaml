@@ -105,7 +105,7 @@ jobs:
             mkdir -p /home/${{ secrets.USERNAME }}/DroneHub
             cd /home/${{ secrets.USERNAME }}/DroneHub
 
-            cat > .env <<'EOF'
+            cat > .env <<EOF
             ENV=prod
             DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
 
@@ -130,6 +130,14 @@ jobs:
             sudo docker compose -f docker-compose.production.yml down
             sudo docker compose -f docker-compose.production.yml up -d --remove-orphans
 
+            echo "Waiting for Postgres..."
+            for i in {1..30}; do
+              if sudo docker compose -f docker-compose.production.yml exec -T postgres pg_isready -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" >/dev/null 2>&1; then
+                echo "Postgres is ready!"
+                break
+              fi
+              sleep 2
+            done
 
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
