@@ -26,3 +26,7 @@ class VideoAdmin(admin.ModelAdmin):
 class HeroVideoAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "is_active", "updated_at")
     list_filter = ("is_active",)
+
+    class Media:
+        css = {"all": ("api/admin_spinner.css",)}
+        js = ("api/admin_spinner.js",)
