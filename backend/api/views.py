@@ -1,72 +1,34 @@
-from django.contrib.auth.models import User
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import HeroVideo
-from .serializers import HeroVideoSerializer
+
+from .models import HeroVideo, Video
+from .serializers import HeroVideoSerializer, VideoSerializer
+
+
+class VideoListView(APIView):
+    def get(self, request):
+        limit = int(request.GET.get("limit", 6))
+        offset = int(request.GET.get("offset", 0))
+
+        qs = (
+            Video.objects.filter(status=Video.Status.APPROVED)
+            .order_by("-published_at", "-created_at")[offset : offset + limit]
+        )
+
+        serializer = VideoSerializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)
 
 
 class HeroVideoView(APIView):
     def get(self, request):
-        hero = HeroVideo.objects.order_by("-id").first()
+        hero = (
+            HeroVideo.objects.filter(is_active=True)
+            .order_by("-updated_at")
+            .first()
+        )
 
         if not hero:
-            return Response(
-                {"detail": "Hero video not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Hero video not found"}, status=404)
 
-        return Response(HeroVideoSerializer(hero, context={"request": request}).data)
-
-@api_view(["GET"])
-def health(request):
-    return Response({"status": "ok"})
-
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def register(request):
-    username = (request.data.get("username") or "").strip()
-    password = request.data.get("password") or ""
-
-    if not username or not password:
-        return Response(
-            {"detail": "username and password required"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    if User.objects.filter(username=username).exists():
-        return Response(
-            {"detail": "username already taken"}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    user = User.objects.create_user(username=username, password=password)
-    return Response(
-        {"id": user.id, "username": user.username}, status=status.HTTP_201_CREATED
-    )
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def me(request):
-    u = request.user
-    return Response({"id": u.id, "username": u.username})
-
-
-class HeroVideoView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        hero = HeroVideo.objects.last()
-        if not hero:
-            return Response({"file": None, "poster": None}, status=200)
-
-        return Response(
-            {
-                "file": hero.file.url if hero.file else None,
-                "poster": hero.poster.url if hero.poster else None,
-            },
-            status=200,
-        )
+        serializer = HeroVideoSerializer(hero, context={"request": request})
+        return Response(serializer.data)
