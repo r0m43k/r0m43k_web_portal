@@ -12,21 +12,31 @@ const FeedApp = (() => {
   let activeVideo = null;
   let postsCount = 0;
 
-  async function loadHeroVideo() {
-    if (!heroVideo) return;
+async function loadHeroVideo() {
+  if (!heroVideo) return;
 
-    try {
-      const res = await fetch("/api/hero/", { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (!data.file_url) return;
+  try {
+    const res = await fetch("/api/hero/", { credentials: "include" });
+    if (!res.ok) return;
 
-      heroVideo.src = data.file_url;
-      heroVideo.loop = true;
-      heroVideo.load();
-      heroVideo.play().catch(() => {});
-    } catch {}
-  }
+    const url = data.file_url || data.file;
+    if (!url) return;
+    heroVideo.src = url;
+
+    const source = heroVideo.querySelector("source");
+    if (source) source.src = url;
+    else heroVideo.src = url;
+
+    heroVideo.loop = true;
+    heroVideo.muted = true;
+    heroVideo.playsInline = true;
+    heroVideo.autoplay = true;
+
+    heroVideo.load();
+    heroVideo.play().catch(() => {});
+  } catch {}
+}
+
 
   function escapeHtml(s) {
     return String(s)
@@ -66,7 +76,6 @@ const FeedApp = (() => {
     videoEl.src = src;
     videoEl.loop = true;
 
-    // клик = mute/unmute
     post.addEventListener("click", () => {
       videoEl.muted = !videoEl.muted;
       post.classList.toggle("is-unmuted", !videoEl.muted);
