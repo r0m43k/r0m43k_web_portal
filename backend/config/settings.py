@@ -15,8 +15,12 @@ CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost").spl
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 500 * 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE = 500 * 1024 * 1024
+FILE_UPLOAD_HANDLERS = [
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]
+FILE_UPLOAD_MAX_MEMORY_SIZE = 0
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 1024  # 1GB (или оставь 500MB)
+
 
 DATABASES = {
     "default": {
