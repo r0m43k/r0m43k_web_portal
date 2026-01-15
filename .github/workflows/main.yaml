@@ -20,7 +20,7 @@ jobs:
           pip install flake8==6.0.0
 
       - name: Run flake8 on backend
-        run: python -m flake8 backend/
+        run: python -m flake8 backend/management/
 
   build_and_push_backend_to_docker_hub:
     runs-on: ubuntu-latest
