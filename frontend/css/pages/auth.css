@@ -1,0 +1,32 @@
+.auth-page{
+  overflow:auto;
+  background: radial-gradient(120% 80% at 50% 20%, rgba(255,255,255,.06), rgba(0,0,0,.9));
+}
+.auth-card{
+  max-width: 420px;
+  margin: 8vh auto;
+  padding: 18px;
+  border: 1px solid var(--ring);
+  background: rgba(0,0,0,.45);
+  border-radius: 22px;
+  backdrop-filter: blur(12px);
+}
+.auth-title{ margin: 0 0 14px; }
+.auth-form{ display:flex; flex-direction:column; gap: 12px; }
+
+.field span{ display:block; font-size:12px; color: var(--muted); margin-bottom: 6px; }
+.field input{
+  width:100%;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--ring);
+  background: rgba(0,0,0,.35);
+  color: var(--fg);
+  outline: none;
+}
+.field input:focus{ border-color: rgba(255,255,255,.32); }
+
+.auth-error{ color: #ffb4b4; font-size: 13px; min-height: 18px; }
+.auth-links{ display:flex; justify-content:space-between; margin-top: 14px; }
+.auth-links a{ color: rgba(255,255,255,.8); text-decoration:none; }
+.auth-links a:hover{ text-decoration:underline; }

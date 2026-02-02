@@ -1,0 +1,16 @@
+.topbar{
+  position: fixed;
+  top: 0;
+  left: 0; right: 0;
+  padding: calc(env(safe-area-inset-top) + 10px) 12px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  z-index: 20;
+  pointer-events: none;
+}
+.topbar *{ pointer-events: auto; }
+
+.brand__title{ font-weight: 700; letter-spacing: .2px; }
+.brand__subtitle{ font-size: 12px; color: var(--muted); margin-top: 2px; }

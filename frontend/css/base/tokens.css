@@ -1,0 +1,10 @@
+:root{
+  --bg: #06070a;
+  --fg: #f2f3f7;
+  --muted: rgba(242,243,247,.65);
+  --glass: rgba(0,0,0,.35);
+  --glass2: rgba(0,0,0,.55);
+  --ring: rgba(255,255,255,.18);
+  --radius: 18px;
+  --pad: 14px;
+}

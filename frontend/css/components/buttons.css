@@ -1,0 +1,23 @@
+.btn{
+  appearance:none;
+  border: 1px solid var(--ring);
+  background: rgba(0,0,0,.35);
+  color: var(--fg);
+  padding: 10px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap: 8px;
+}
+.btn:hover{ background: rgba(0,0,0,.5); }
+.btn--primary{
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.22);
+}
+.btn--big{
+  padding: 14px 18px;
+  font-size: 16px;
+}
