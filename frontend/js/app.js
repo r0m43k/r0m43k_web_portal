@@ -152,12 +152,16 @@ const FeedApp = (() => {
         const text = input?.value?.trim();
         if (!text) return;
 
+        const csrf = await Auth.ensureCsrf();
         const res = await fetch(
           `/api/videos/${activeCommentVideoId}/comments/`,
           {
             method: "POST",
             credentials: "include",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(csrf ? { "X-CSRFToken": csrf } : {}),
+            },
             body: JSON.stringify({ text }),
           }
         );
@@ -200,6 +204,7 @@ const FeedApp = (() => {
     if (!videoEl || !loaderEl) return;
     const bar = loaderEl.querySelector(".video-loader__bar");
     const text = loaderEl.querySelector(".video-loader__text");
+    const post = videoEl.closest(".post");
 
     const update = () => {
       if (!videoEl.duration || !videoEl.buffered?.length) return;
@@ -211,9 +216,11 @@ const FeedApp = (() => {
 
     const hide = () => {
       loaderEl.classList.add("is-hidden");
+      if (post) post.classList.remove("is-loading");
     };
     const show = () => {
       loaderEl.classList.remove("is-hidden");
+      if (post) post.classList.add("is-loading");
     };
     const showError = () => {
       if (text) text.textContent = "Ошибка загрузки видео";
@@ -229,6 +236,30 @@ const FeedApp = (() => {
     videoEl.addEventListener("error", showError);
 
     update();
+  }
+
+  function attachHoldToPause(videoEl, post) {
+    if (!videoEl || !post) return;
+    let isHolding = false;
+    videoEl.addEventListener("pointerdown", (e) => {
+      isHolding = true;
+      videoEl.pause();
+      e.preventDefault();
+    });
+    const release = () => {
+      if (!isHolding) return;
+      isHolding = false;
+      videoEl.play().catch(() => {});
+    };
+    videoEl.addEventListener("pointerup", release);
+    videoEl.addEventListener("pointerleave", release);
+    videoEl.addEventListener("pointercancel", release);
+
+    post.addEventListener("click", () => {
+      if (isHolding) return;
+      videoEl.muted = !videoEl.muted;
+      post.classList.toggle("is-unmuted", !videoEl.muted);
+    });
   }
 
   async function loadHeroVideo() {
@@ -254,6 +285,7 @@ const FeedApp = (() => {
       heroVideo.setAttribute("playsinline", "");
 
       attachVideoLoader(heroVideo, heroLoader);
+      attachHoldToPause(heroVideo, heroPost);
 
       heroVideo.load();
       heroVideo.play().catch(() => {});
@@ -279,7 +311,7 @@ const FeedApp = (() => {
     const likedByMe = Boolean(v.liked_by_me);
 
     const post = document.createElement("section");
-    post.className = "post";
+    post.className = "post post--compact";
     post.dataset.src = src;
     post.dataset.id = v.id;
 
@@ -288,8 +320,6 @@ const FeedApp = (() => {
 
       <div class="post__ui">
         <div class="post__meta">
-          <div class="post__title">${escapeHtml(title)}</div>
-          <div class="post__sub">${escapeHtml(src)}</div>
           <div class="video-loader is-hidden">
             <div class="video-loader__bar" style="width: 0%"></div>
             <div class="video-loader__text">Загрузка видео 0%</div>
@@ -305,7 +335,6 @@ const FeedApp = (() => {
             <span class="pill__icon">💬</span>
             <span class="pill__count" data-role="comments">${comments}</span>
           </button>
-          <button class="pill" type="button" data-action="share">↗</button>
         </div>
       </div>
     `;
@@ -324,10 +353,7 @@ const FeedApp = (() => {
 
     if (src) enqueuePreload(src);
 
-    post.addEventListener("click", () => {
-      videoEl.muted = !videoEl.muted;
-      post.classList.toggle("is-unmuted", !videoEl.muted);
-    });
+    attachHoldToPause(videoEl, post);
 
     const likeBtn = post.querySelector('[data-action="like"]');
     const commentBtn = post.querySelector('[data-action="comment"]');
@@ -341,9 +367,11 @@ const FeedApp = (() => {
         }
         const id = post.dataset.id;
         if (!id) return;
+        const csrf = await Auth.ensureCsrf();
         const res = await fetch(`/api/videos/${id}/like/`, {
           method: "POST",
           credentials: "include",
+          headers: csrf ? { "X-CSRFToken": csrf } : {},
         });
         if (!res.ok) return;
         const data = await res.json();

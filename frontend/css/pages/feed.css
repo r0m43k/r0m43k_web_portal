@@ -44,6 +44,11 @@
   height:100%;
   object-fit: cover;
   background:#000;
+  filter: brightness(0.85);
+  transition: filter .2s ease;
+}
+.post.is-loading .post__video{
+  filter: brightness(0.6);
 }
 
 .post__ui{
@@ -211,7 +216,20 @@
 }
 
 .post--hero .post__ui{
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+}
+.post--hero .post__meta{
+  text-align: center;
+  background: rgba(0,0,0,.35);
+}
+
+.post--compact .post__meta{
+  background: transparent;
+  border: 0;
+  backdrop-filter: none;
+  padding: 0;
 }
 
 .hero-screen{

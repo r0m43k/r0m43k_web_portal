@@ -56,19 +56,25 @@ const AdminApp = (() => {
     `;
 
     el.querySelector("[data-action='approve']").addEventListener("click", async () => {
+      const csrf = await Auth.ensureCsrf();
       await fetch(`/api/admin/videos/${v.id}/approve/`, {
         method: "POST",
         credentials: "include",
+        headers: csrf ? { "X-CSRFToken": csrf } : {},
       });
       await loadVideos();
     });
 
     el.querySelector("[data-action='reject']").addEventListener("click", async () => {
       const reason = prompt("Причина отклонения:");
+      const csrf = await Auth.ensureCsrf();
       await fetch(`/api/admin/videos/${v.id}/reject/`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrf ? { "X-CSRFToken": csrf } : {}),
+        },
         body: JSON.stringify({ reason }),
       });
       await loadVideos();
@@ -97,15 +103,17 @@ const AdminApp = (() => {
 
   function wireUpload() {
     if (!uploadForm) return;
-    uploadForm.addEventListener("submit", (e) => {
+    uploadForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (progress) progress.style.display = "block";
       if (bar) bar.style.width = "0%";
       if (text) text.textContent = "Загрузка 0%";
 
+      const csrf = await Auth.ensureCsrf();
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/videos/");
       xhr.withCredentials = true;
+      if (csrf) xhr.setRequestHeader("X-CSRFToken", csrf);
 
       xhr.upload.addEventListener("progress", (evt) => {
         if (!evt.lengthComputable) return;
