@@ -17,12 +17,28 @@
   <main class="feed" id="feed" aria-live="polite">
 
     <section class="post post--hero" id="heroPost">
-      <video id="heroVideo" class="post__video" autoplay muted loop playsinline preload="auto"></video>
+      <video
+        id="heroVideo"
+        class="post__video"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+      ></video>
+      <div class="post__placeholder">
+        <div class="post__placeholder-title">Видеоплатформа</div>
+        <div class="post__placeholder-sub">Подготовка видео...</div>
+      </div>
 
       <div class="post__ui">
         <div class="post__meta">
           <div class="post__title">Видеоплатформа</div>
           <div class="post__sub">Свайпни вниз или нажми “Смотреть”</div>
+          <div class="video-loader" id="heroLoader">
+            <div class="video-loader__bar" style="width: 0%"></div>
+            <div class="video-loader__text">Загрузка видео 0%</div>
+          </div>
         </div>
 
         <div class="post__actions">
@@ -33,6 +49,32 @@
   </main>
 
   <div id="sentinel" class="sentinel"></div>
+
+  <div class="modal is-hidden" id="commentsModal" role="dialog" aria-modal="true">
+    <div class="modal__backdrop" data-action="close"></div>
+    <div class="modal__panel" role="document">
+      <div class="modal__header">
+        <div class="modal__title">Комментарии</div>
+        <button class="modal__close" type="button" data-action="close">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="modal__list" id="commentsList"></div>
+      </div>
+      <div class="modal__footer">
+        <form class="modal__form" id="commentForm">
+          <input
+            class="modal__input"
+            name="text"
+            placeholder="Написать комментарий..."
+            maxlength="1000"
+            autocomplete="off"
+          />
+          <button class="btn btn--primary" type="submit">Отправить</button>
+        </form>
+        <div class="modal__hint" id="commentHint"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="/js/auth.js"></script>
   <script src="/js/app.js"></script>
