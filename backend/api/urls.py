@@ -1,6 +1,12 @@
 from django.urls import path
 
-from .auth_views import CsrfView, LoginView, LogoutView, RefreshView, RegisterView
+from .auth_views import (
+    CsrfView,
+    LoginView,
+    LogoutView,
+    RefreshView,
+    RegisterView,
+)
 from .video_views import VideoListView
 from .views import HeroVideoView, health, me
 
@@ -14,5 +20,4 @@ urlpatterns = [
     path("auth/me/", me),
     path("videos/", VideoListView.as_view()),
     path("hero/", HeroVideoView.as_view()),
-    
 ]

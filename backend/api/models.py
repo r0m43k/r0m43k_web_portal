@@ -10,7 +10,9 @@ class Video(models.Model):
         REJECTED = "rejected", "Rejected"
 
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="videos"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="videos",
     )
     title = models.CharField(max_length=200)
     file = models.FileField(upload_to="videos/%Y/%m/%d/")

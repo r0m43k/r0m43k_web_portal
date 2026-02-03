@@ -37,7 +37,8 @@ class RegisterView(APIView):
 
         user = User.objects.create_user(username=username, password=password)
         return Response(
-            {"id": user.id, "username": user.username}, status=status.HTTP_201_CREATED
+            {"id": user.id, "username": user.username},
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -83,14 +84,19 @@ class LoginView(APIView):
         user = authenticate(username=username, password=password)
         if not user or not user.is_active:
             return Response(
-                {"detail": "invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
+                {"detail": "invalid credentials"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
 
-        access_ttl = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
-        refresh_ttl = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+        access_ttl = int(
+            settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()
+        )
+        refresh_ttl = int(
+            settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
+        )
 
         resp = Response({"ok": True})
 
@@ -102,7 +108,8 @@ class LoginView(APIView):
             httponly=True,
             path="/",
         )
-        # refresh можно ограничить path="/api/auth/" (чуть безопаснее)
+        # refresh можно ограничить path="/api/auth/"
+        # (чуть безопаснее)
         _set_cookie(
             resp,
             COOKIE_REFRESH,
@@ -123,7 +130,8 @@ class RefreshView(APIView):
         refresh_str = request.COOKIES.get(COOKIE_REFRESH)
         if not refresh_str:
             return Response(
-                {"detail": "no refresh"}, status=status.HTTP_401_UNAUTHORIZED
+                {"detail": "no refresh"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
         try:
@@ -131,7 +139,8 @@ class RefreshView(APIView):
             user_id = old_refresh.get("user_id")
             if not user_id:
                 return Response(
-                    {"detail": "invalid refresh"}, status=status.HTTP_401_UNAUTHORIZED
+                    {"detail": "invalid refresh"},
+                    status=status.HTTP_401_UNAUTHORIZED,
                 )
 
             user = User.objects.get(id=user_id, is_active=True)
@@ -146,11 +155,16 @@ class RefreshView(APIView):
 
         except Exception:
             return Response(
-                {"detail": "invalid refresh"}, status=status.HTTP_401_UNAUTHORIZED
+                {"detail": "invalid refresh"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        access_ttl = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
-        refresh_ttl = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+        access_ttl = int(
+            settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()
+        )
+        refresh_ttl = int(
+            settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
+        )
 
         resp = Response({"ok": True})
         _set_cookie(
