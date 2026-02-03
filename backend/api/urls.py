@@ -7,6 +7,11 @@ from .auth_views import (
     RefreshView,
     RegisterView,
 )
+from .admin_views import (
+    AdminVideoApproveView,
+    AdminVideoListView,
+    AdminVideoRejectView,
+)
 from .video_views import (
     VideoCommentListCreateView,
     VideoLikeToggleView,
@@ -29,4 +34,13 @@ urlpatterns = [
     ),
     path("videos/<int:video_id>/like/", VideoLikeToggleView.as_view()),
     path("hero/", HeroVideoView.as_view()),
+    path("admin/videos/", AdminVideoListView.as_view()),
+    path(
+        "admin/videos/<int:video_id>/approve/",
+        AdminVideoApproveView.as_view(),
+    ),
+    path(
+        "admin/videos/<int:video_id>/reject/",
+        AdminVideoRejectView.as_view(),
+    ),
 ]

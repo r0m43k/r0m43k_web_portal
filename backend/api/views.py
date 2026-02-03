@@ -38,4 +38,6 @@ def me(request):
         "id": u.id,
         "username": u.username,
         "email": u.email,
+        "is_staff": u.is_staff,
+        "is_superuser": u.is_superuser,
     })

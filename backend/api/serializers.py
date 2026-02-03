@@ -48,3 +48,35 @@ class VideoCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoComment
         fields = ["id", "user", "text", "created_at"]
+
+
+class AdminVideoSerializer(serializers.ModelSerializer):
+    owner_username = serializers.CharField(
+        source="owner.username",
+        read_only=True,
+    )
+    file_url = serializers.SerializerMethodField()
+    likes_count = serializers.IntegerField(read_only=True)
+    comments_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Video
+        fields = [
+            "id",
+            "title",
+            "file_url",
+            "status",
+            "reject_reason",
+            "created_at",
+            "published_at",
+            "owner_username",
+            "likes_count",
+            "comments_count",
+        ]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if not obj.file:
+            return None
+        url = obj.file.url
+        return request.build_absolute_uri(url) if request else url

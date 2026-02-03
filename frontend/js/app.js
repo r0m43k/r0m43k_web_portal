@@ -185,7 +185,7 @@ const FeedApp = (() => {
         if (input) input.value = "";
 
         const post = document.querySelector(
-          \`.post[data-id="\${activeCommentVideoId}"]\`
+          `.post[data-id="${activeCommentVideoId}"]`
         );
         const countEl = post?.querySelector('[data-role="comments"]');
         if (countEl) {

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Админка</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body class="admin-page">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__title">r0m43k Admin</div>
+      <div class="brand__subtitle">Модерация видео</div>
+    </div>
+    <div class="topbar__actions">
+      <a class="btn btn--ghost" href="/" id="homeBtn">На сайт</a>
+      <button class="btn btn--primary" id="logoutBtn">Выйти</button>
+    </div>
+  </header>
+
+  <main class="admin">
+    <section class="admin__panel">
+      <h2 class="admin__title">Загрузка видео</h2>
+      <form id="uploadForm" class="admin__upload" enctype="multipart/form-data">
+        <input class="admin__input" name="title" placeholder="Название" />
+        <input class="admin__file" type="file" name="file" accept="video/*" required />
+        <button class="btn btn--primary" type="submit">Загрузить</button>
+      </form>
+      <div class="upload-progress" id="adminUploadProgress" style="display:none;">
+        <div class="upload-progress__bar">
+          <span id="adminUploadBar"></span>
+        </div>
+        <div class="upload-progress__text" id="adminUploadText">Загрузка 0%</div>
+      </div>
+    </section>
+
+    <section class="admin__panel">
+      <h2 class="admin__title">Видео</h2>
+      <div class="admin__list" id="adminVideoList"></div>
+    </section>
+  </main>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

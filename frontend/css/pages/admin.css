@@ -1,0 +1,122 @@
+.admin-page{
+  background: var(--admin-bg);
+  color: var(--fg);
+  min-height: 100vh;
+  padding-top: 64px;
+  overflow: auto;
+}
+
+.admin{
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+  display: grid;
+  gap: 18px;
+}
+
+.admin__panel{
+  background: var(--admin-card);
+  border: 1px solid var(--ring);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.admin__title{
+  margin: 0 0 12px;
+}
+
+.admin__upload{
+  display: grid;
+  gap: 10px;
+}
+
+.admin__input,
+.admin__file{
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--ring);
+  background: rgba(0,0,0,.35);
+  color: var(--fg);
+  padding: 10px 12px;
+}
+
+.admin__list{
+  display: grid;
+  gap: 12px;
+}
+
+.admin-card{
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.35);
+}
+
+.admin-card__thumb{
+  width: 140px;
+  height: 90px;
+  background: #000;
+}
+
+.admin-card__thumb video{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-card__meta{
+  display: grid;
+  gap: 6px;
+}
+
+.admin-card__title{
+  font-weight: 700;
+}
+
+.admin-card__sub{
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.admin-card__actions{
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.admin-card__status{
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--ring);
+  text-align: center;
+}
+
+.upload-progress{
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #2b2f36;
+  border-radius: 8px;
+  background: #101216;
+}
+.upload-progress__bar{
+  height: 6px;
+  border-radius: 999px;
+  background: #1f2229;
+  overflow: hidden;
+}
+.upload-progress__bar > span{
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: #4c8bf5;
+  transition: width .2s ease;
+}
+.upload-progress__text{
+  margin-top: 6px;
+  font-size: 12px;
+  color: #c9d1d9;
+}
