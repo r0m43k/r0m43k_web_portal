@@ -38,10 +38,18 @@ class AdminVideoRejectView(APIView):
 
     def post(self, request, video_id):
         video = get_object_or_404(Video, pk=video_id)
-        reason = (request.data.get("reason") or "").strip()
-        video.status = Video.Status.REJECTED
-        video.reject_reason = reason
+        video.status = Video.Status.PENDING
+        video.reject_reason = ""
         video.save(update_fields=["status", "reject_reason", "published_at"])
+        return Response({"ok": True}, status=status.HTTP_200_OK)
+
+
+class AdminVideoDeleteView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def delete(self, request, video_id):
+        video = get_object_or_404(Video, pk=video_id)
+        video.delete()
         return Response({"ok": True}, status=status.HTTP_200_OK)
 
 

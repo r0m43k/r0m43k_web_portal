@@ -33,9 +33,8 @@ const AdminApp = (() => {
   }
 
   function statusLabel(status) {
-    if (status === "approved") return "Одобрено";
-    if (status === "rejected") return "Отклонено";
-    return "На модерации";
+    if (status === "approved") return "В профиле";
+    return "Скрыто";
   }
 
   function escapeHtml(s) {
@@ -53,6 +52,9 @@ const AdminApp = (() => {
   }
 
   function renderVideoCard(v) {
+    const inFeed = v.status === "approved";
+    const primaryLabel = inFeed ? "Убрать из ленты" : "Отобразить в профиле";
+    const primaryAction = inFeed ? "hide" : "publish";
     const el = document.createElement("div");
     el.className = "admin-card";
     el.dataset.id = v.id;
@@ -64,18 +66,17 @@ const AdminApp = (() => {
         <div class="admin-card__title">${escapeHtml(v.title || "Без названия")}</div>
         <div class="admin-card__sub">Автор: ${escapeHtml(v.owner_username || "—")}</div>
         <div class="admin-card__sub">Лайки: ${v.likes_count || 0} • Комм: ${v.comments_count || 0}</div>
-        <div class="admin-card__sub">Причина: ${escapeHtml(v.reject_reason || "—")}</div>
       </div>
       <div class="admin-card__actions">
         <div class="admin-card__status">${statusLabel(v.status)}</div>
-        <button class="btn btn--primary" data-action="approve">Одобрить</button>
-        <button class="btn" data-action="reject">Отклонить</button>
+        <button class="btn btn--primary" data-action="${primaryAction}">${primaryLabel}</button>
+        <button class="btn" data-action="delete">Удалить</button>
       </div>
     `;
 
-    el.querySelector("[data-action='approve']").addEventListener("click", async () => {
+    el.querySelector("[data-action='publish']").addEventListener("click", async () => {
       const csrf = await Auth.ensureCsrf();
-      await fetch(`/api/admin/videos/${v.id}/approve/`, {
+      await fetch(`/api/admin/videos/${v.id}/publish/`, {
         method: "POST",
         credentials: "include",
         headers: csrf ? { "X-CSRFToken": csrf } : {},
@@ -83,17 +84,27 @@ const AdminApp = (() => {
       await loadVideos();
     });
 
-    el.querySelector("[data-action='reject']").addEventListener("click", async () => {
-      const reason = prompt("Причина отклонения:");
+    el.querySelector("[data-action='hide']").addEventListener("click", async () => {
       const csrf = await Auth.ensureCsrf();
-      await fetch(`/api/admin/videos/${v.id}/reject/`, {
+      await fetch(`/api/admin/videos/${v.id}/hide/`, {
         method: "POST",
         credentials: "include",
         headers: {
-          "Content-Type": "application/json",
           ...(csrf ? { "X-CSRFToken": csrf } : {}),
         },
-        body: JSON.stringify({ reason }),
+      });
+      await loadVideos();
+    });
+
+    el.querySelector("[data-action='delete']").addEventListener("click", async () => {
+      if (!confirm("Удалить видео навсегда?")) return;
+      const csrf = await Auth.ensureCsrf();
+      await fetch(`/api/admin/videos/${v.id}/delete/`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...(csrf ? { "X-CSRFToken": csrf } : {}),
+        },
       });
       await loadVideos();
     });
@@ -209,28 +220,35 @@ const AdminApp = (() => {
 
   async function loadHeroPreview() {
     if (!heroPreview) return;
-    heroPreview.innerHTML = `<div class="hero-preview__empty">Загрузка...</div>`;
+    heroPreview.innerHTML = "";
     try {
       const res = await fetch("/api/hero/", { credentials: "include" });
       if (!res.ok) {
-        heroPreview.innerHTML = `<div class="hero-preview__empty">Нет загруженного превью</div>`;
+        heroPreview.innerHTML = "";
         return;
       }
       const data = await res.json();
       const url = data.file_url || data.file;
       if (!url) {
-        heroPreview.innerHTML = `<div class="hero-preview__empty">Нет загруженного превью</div>`;
+        heroPreview.innerHTML = "";
         return;
       }
       if (isImageUrl(url)) {
-        heroPreview.innerHTML = `<img src="${url}" alt="Hero preview" />`;
+        heroPreview.innerHTML = `<img class="hero-preview__media" src="${url}" alt="Hero preview" />`;
         return;
       }
       heroPreview.innerHTML = `
-        <video src="${url}" muted playsinline controls></video>
+        <video class="hero-preview__media" muted playsinline preload="metadata"></video>
       `;
+      const v = heroPreview.querySelector("video");
+      if (v) {
+        v.src = url;
+        v.addEventListener("loadedmetadata", () => {
+          try { v.currentTime = 0.01; } catch {}
+        }, { once: true });
+      }
     } catch {
-      heroPreview.innerHTML = `<div class="hero-preview__empty">Не удалось загрузить превью</div>`;
+      heroPreview.innerHTML = "";
     }
   }
 

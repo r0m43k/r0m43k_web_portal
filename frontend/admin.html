@@ -13,7 +13,7 @@
       <div class="brand__subtitle">Модерация видео</div>
     </div>
     <div class="topbar__actions">
-      <span class="admin__user" id="adminUser" hidden></span>
+      <span class="admin__user btn" id="adminUser" hidden></span>
       <a class="btn btn--ghost" href="/" id="homeBtn">На сайт</a>
       <button class="btn btn--primary" id="logoutBtn" hidden>Выйти</button>
     </div>
@@ -28,9 +28,7 @@
         <input class="admin__file" type="file" name="file" accept="video/*,image/*" required />
         <button class="btn btn--primary" type="submit">Обновить главный экран</button>
       </form>
-      <div class="hero-preview" id="heroPreview">
-        <div class="hero-preview__empty">Нет загруженного превью</div>
-      </div>
+      <div class="hero-preview" id="heroPreview"></div>
       <div class="upload-progress" id="heroUploadProgress" style="display:none;">
         <div class="upload-progress__bar">
           <span id="heroUploadBar"></span>

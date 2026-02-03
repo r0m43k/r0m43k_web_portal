@@ -11,6 +11,7 @@ from .auth_views import (
 from .admin_views import (
     AdminHeroUploadView,
     AdminVideoApproveView,
+    AdminVideoDeleteView,
     AdminVideoListView,
     AdminVideoRejectView,
 )
@@ -43,12 +44,7 @@ urlpatterns = [
     path("hero/", HeroVideoView.as_view()),
     path("admin/videos/", AdminVideoListView.as_view()),
     path("admin/hero/", AdminHeroUploadView.as_view()),
-    path(
-        "admin/videos/<int:video_id>/approve/",
-        AdminVideoApproveView.as_view(),
-    ),
-    path(
-        "admin/videos/<int:video_id>/reject/",
-        AdminVideoRejectView.as_view(),
-    ),
+    path("admin/videos/<int:video_id>/publish/", AdminVideoApproveView.as_view()),
+    path("admin/videos/<int:video_id>/hide/", AdminVideoRejectView.as_view()),
+    path("admin/videos/<int:video_id>/delete/", AdminVideoDeleteView.as_view()),
 ]

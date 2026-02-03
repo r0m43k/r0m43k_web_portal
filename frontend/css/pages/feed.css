@@ -320,6 +320,9 @@
   pointer-events: none;
   z-index: 1;
 }
+.post--hero.is-empty::after{
+  background: transparent;
+}
 .post--hero .post__ui{ z-index: 2; }
 
 .post--compact .post__meta{

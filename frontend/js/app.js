@@ -395,11 +395,23 @@ const FeedApp = (() => {
 
     try {
       const res = await fetch("/api/hero/", { credentials: "include" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        heroVideo.removeAttribute("src");
+        heroVideo.removeAttribute("poster");
+        if (heroLoader) heroLoader.classList.add("is-hidden");
+        heroPost?.classList.add("is-empty");
+        return;
+      }
 
       const data = await res.json();
       const url = data.file_url || data.file;
-      if (!url) return;
+      if (!url) {
+        heroVideo.removeAttribute("src");
+        heroVideo.removeAttribute("poster");
+        if (heroLoader) heroLoader.classList.add("is-hidden");
+        heroPost?.classList.add("is-empty");
+        return;
+      }
 
       if (isImageUrl(url)) {
         const source = heroVideo.querySelector("source");
@@ -408,6 +420,7 @@ const FeedApp = (() => {
         heroVideo.poster = url;
         heroVideo.load();
         if (heroLoader) heroLoader.classList.add("is-hidden");
+        heroPost?.classList.remove("is-empty");
         if (heroPost) heroPost.classList.add("is-image");
         return;
       }
@@ -423,6 +436,7 @@ const FeedApp = (() => {
       const source = heroVideo.querySelector("source");
       if (source) source.src = url;
       heroVideo.src = url;
+      heroPost?.classList.remove("is-empty");
 
       heroVideo.load();
       heroVideo.play().catch(() => {});
