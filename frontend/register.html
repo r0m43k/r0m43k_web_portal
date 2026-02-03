@@ -58,8 +58,10 @@
 
       const res = await Auth.register(username, password, nickname, email);
       if (res.ok) {
+        err.classList.add("is-success");
         err.textContent = "Письмо с подтверждением отправлено на email.";
       } else {
+        err.classList.remove("is-success");
         err.textContent = res.detail || "Не удалось создать пользователя.";
       }
     });

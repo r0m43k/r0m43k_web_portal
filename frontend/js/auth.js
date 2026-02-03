@@ -77,6 +77,10 @@ const Auth = (() => {
     const userEl = document.getElementById("topbarUser");
     if (!loginBtn || !logoutBtn) return;
 
+    loginBtn.hidden = true;
+    logoutBtn.hidden = true;
+    if (userEl) userEl.hidden = true;
+
     const user = await me();
     if (user) {
       loginBtn.hidden = true;
@@ -91,10 +95,14 @@ const Auth = (() => {
       });
     } else {
       loginBtn.hidden = false;
-      logoutBtn.hidden = true;
-      if (userEl) userEl.hidden = true;
     }
   }
 
-  return { me, login, register, logout, wireTopbar, ensureCsrf, getCookie };
+  const api = { me, login, register, logout, wireTopbar, ensureCsrf, getCookie };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    api.wireTopbar();
+  });
+
+  return api;
 })();

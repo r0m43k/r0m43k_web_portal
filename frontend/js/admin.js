@@ -13,15 +13,16 @@ const AdminApp = (() => {
       location.href = "/login.html";
       return null;
     }
-    if (!me.is_staff && !me.is_superuser) {
-      location.href = "/";
-      return null;
-    }
     if (adminUser) {
       adminUser.hidden = false;
       adminUser.textContent = me.nickname || me.username || "admin";
     }
     if (logoutBtn) logoutBtn.hidden = false;
+    if (!me.is_staff && !me.is_superuser) {
+      if (listEl) listEl.innerHTML = "Нет доступа";
+      if (uploadForm) uploadForm.style.display = "none";
+      return null;
+    }
     return me;
   }
 
