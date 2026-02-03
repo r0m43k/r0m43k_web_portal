@@ -104,6 +104,9 @@ jobs:
               sudo systemctl enable --now docker || true
             }
 
+            echo "Pruning unused Docker data to free disk space..."
+            sudo docker system prune -f || true
+
             mkdir -p /home/${{ secrets.USERNAME }}/DroneHub
             cd /home/${{ secrets.USERNAME }}/DroneHub
 
