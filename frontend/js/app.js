@@ -241,25 +241,104 @@ const FeedApp = (() => {
   function attachHoldToPause(videoEl, post) {
     if (!videoEl || !post) return;
     let isHolding = false;
-    videoEl.addEventListener("pointerdown", (e) => {
+    let holdTimer = null;
+    let seekDir = 0;
+    let seekInterval = null;
+    let seekTotal = 0;
+    let downX = 0;
+    let downY = 0;
+    let moved = false;
+
+    const seekEl = post.querySelector(".seek-indicator");
+    const seekText = seekEl?.querySelector(".seek-indicator__text");
+    const seekIcon = seekEl?.querySelector(".seek-indicator__icon");
+
+    const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+    const showSeek = (dir, total) => {
+      if (!seekEl) return;
+      seekEl.classList.add("is-visible");
+      if (seekIcon) seekIcon.textContent = dir < 0 ? "⏪" : "⏩";
+      if (seekText) seekText.textContent = `${dir < 0 ? "−" : "+"}${total.toFixed(1)}s`;
+    };
+
+    const hideSeek = () => {
+      if (!seekEl) return;
+      seekEl.classList.remove("is-visible");
+    };
+
+    const stopSeek = () => {
+      if (seekInterval) clearInterval(seekInterval);
+      seekInterval = null;
+      seekTotal = 0;
+      hideSeek();
+    };
+
+    const startSeek = (dir) => {
+      stopSeek();
+      seekDir = dir;
+      seekInterval = setInterval(() => {
+        const step = 0.5;
+        const duration = isFinite(videoEl.duration) ? videoEl.duration : videoEl.currentTime + 1;
+        videoEl.currentTime = clamp(videoEl.currentTime + dir * step, 0, duration);
+        seekTotal = clamp(seekTotal + step, 0, 30);
+        showSeek(dir, seekTotal);
+      }, 200);
+    };
+
+    const getDir = (clientX) => {
+      const rect = videoEl.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const left = rect.width * 0.33;
+      const right = rect.width * 0.67;
+      if (x < left) return -1;
+      if (x > right) return 1;
+      return 0;
+    };
+
+    const beginHold = (clientX) => {
       isHolding = true;
       videoEl.pause();
-      e.preventDefault();
-    });
-    const release = () => {
+      const dir = getDir(clientX);
+      if (dir !== 0) startSeek(dir);
+    };
+
+    const endHold = () => {
       if (!isHolding) return;
       isHolding = false;
+      stopSeek();
       videoEl.play().catch(() => {});
     };
-    videoEl.addEventListener("pointerup", release);
-    videoEl.addEventListener("pointerleave", release);
-    videoEl.addEventListener("pointercancel", release);
 
-    post.addEventListener("click", () => {
-      if (isHolding) return;
-      videoEl.muted = !videoEl.muted;
-      post.classList.toggle("is-unmuted", !videoEl.muted);
+    videoEl.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      moved = false;
+      downX = e.clientX;
+      downY = e.clientY;
+      holdTimer = setTimeout(() => beginHold(e.clientX), 220);
     });
+
+    videoEl.addEventListener("pointermove", (e) => {
+      if (Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) > 10) {
+        moved = true;
+      }
+    });
+
+    const onPointerUp = () => {
+      if (holdTimer) clearTimeout(holdTimer);
+      if (isHolding) {
+        endHold();
+        return;
+      }
+      if (!moved) {
+        videoEl.muted = !videoEl.muted;
+        post.classList.toggle("is-unmuted", !videoEl.muted);
+      }
+    };
+
+    videoEl.addEventListener("pointerup", onPointerUp);
+    videoEl.addEventListener("pointerleave", onPointerUp);
+    videoEl.addEventListener("pointercancel", onPointerUp);
   }
 
   async function loadHeroVideo() {
@@ -285,7 +364,6 @@ const FeedApp = (() => {
       heroVideo.setAttribute("playsinline", "");
 
       attachVideoLoader(heroVideo, heroLoader);
-      attachHoldToPause(heroVideo, heroPost);
 
       heroVideo.load();
       heroVideo.play().catch(() => {});
@@ -317,6 +395,12 @@ const FeedApp = (() => {
 
     post.innerHTML = `
       <video class="post__video" playsinline muted preload="auto" loop></video>
+      <div class="seek-indicator" aria-hidden="true">
+        <div class="seek-indicator__bubble">
+          <div class="seek-indicator__icon">⏩</div>
+          <div class="seek-indicator__text">+0.0s</div>
+        </div>
+      </div>
 
       <div class="post__ui">
         <div class="post__meta">

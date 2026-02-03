@@ -50,6 +50,12 @@
 .post.is-loading .post__video{
   filter: brightness(0.6);
 }
+.post--hero .post__video{
+  filter: brightness(0.55);
+}
+.post--hero.is-loading .post__video{
+  filter: brightness(0.25);
+}
 
 .post__ui{
   position: absolute;
@@ -124,6 +130,40 @@
 }
 .video-loader.is-hidden{
   display: none;
+}
+
+.seek-indicator{
+  position: absolute;
+  inset: 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  opacity: 0;
+  transform: scale(.95);
+  transition: opacity .12s ease, transform .12s ease;
+  z-index: 4;
+}
+.seek-indicator.is-visible{
+  opacity: 1;
+  transform: scale(1);
+}
+.seek-indicator__bubble{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.45);
+  border: 1px solid var(--ring);
+  backdrop-filter: blur(6px);
+}
+.seek-indicator__icon{
+  font-size: 18px;
+}
+.seek-indicator__text{
+  font-size: 12px;
+  color: rgba(255,255,255,.85);
 }
 
 .modal{
