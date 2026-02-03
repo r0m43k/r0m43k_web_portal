@@ -194,7 +194,7 @@ jobs:
           for item in "${checks[@]}"; do
             path="${item%% *}"
             code_re="${item#* }"
-            status=$(curl -kIsS "$base$path" | head -n 1 | awk '{print $2}')
+            status=$(curl -ksS -o /dev/null -w "%{http_code}" "$base$path")
             echo "$path -> $status"
             echo "$status" | grep -qE "^(${code_re})$"
           done
