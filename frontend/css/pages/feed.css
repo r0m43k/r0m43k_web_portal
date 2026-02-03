@@ -118,7 +118,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid var(--ring);
+  border: none;
   background: var(--glass2);
   color: var(--fg);
   cursor:pointer;
@@ -135,19 +135,30 @@
 .video-loader{
   margin-top: 8px;
   position: relative;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.2);
-  overflow: hidden;
+  padding-top: 8px;
 }
 .video-loader__bar{
-  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 4px;
+  border-radius: 999px;
   background: rgba(255,255,255,.65);
   width: 0%;
   transition: width .2s ease;
 }
+.video-loader::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.2);
+}
 .video-loader__text{
-  margin-top: 5px;
+  margin-top: 6px;
   font-size: 10px;
   color: rgba(255,255,255,.7);
 }

@@ -73,14 +73,17 @@
         return;
       }
 
-      const res = await Auth.register(password, nickname, email);
-      if (res.ok) {
-        err.classList.add("is-success");
-        if (res.data?.verify_required === false) {
-          err.textContent = "Письмо отправлено (заглушка). Можно входить.";
-        } else {
-          err.textContent = "Письмо с подтверждением отправлено на email.";
-        }
+        const res = await Auth.register(password, nickname, email);
+        if (res.ok) {
+          err.classList.add("is-success");
+          if (res.data?.verify_required === false) {
+            err.textContent = "Письмо отправлено. Можно входить.";
+            setTimeout(() => {
+              location.href = "/login.html";
+            }, 800);
+          } else {
+            err.textContent = "Письмо с подтверждением отправлено на email.";
+          }
         const verifyUrl = res.data?.verify_url;
         if (verifyUrl && res.data?.verify_required !== false) {
           const br = document.createElement("br");

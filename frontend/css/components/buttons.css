@@ -1,7 +1,7 @@
 .btn{
   appearance:none;
-  border: 1px solid var(--ring);
-  background: rgba(0,0,0,.35);
+  border: none;
+  background: transparent;
   color: var(--fg);
   padding: 10px 12px;
   border-radius: 999px;
@@ -12,10 +12,10 @@
   justify-content:center;
   gap: 8px;
 }
-.btn:hover{ background: rgba(0,0,0,.5); }
+.btn:hover{ background: transparent; }
 .btn--primary{
-  background: rgba(255,255,255,.12);
-  border-color: rgba(255,255,255,.22);
+  background: transparent;
+  border: none;
 }
 .btn--big{
   padding: 14px 18px;
