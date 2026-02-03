@@ -69,24 +69,27 @@ class RegisterView(APIView):
                 username = f"{base}{i}"
                 i += 1
 
+        verify_required = getattr(settings, "SEND_EMAILS", False)
         user = User.objects.create_user(
             username=username,
             password=password,
             email=email,
             first_name=nickname,
-            is_active=False,
+            is_active=not verify_required,
         )
 
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        verify_url = request.build_absolute_uri(
-            reverse(
-                "api-verify-email",
-                kwargs={"uidb64": uid, "token": token},
+        verify_url = None
+        if verify_required or settings.DEBUG:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            verify_url = request.build_absolute_uri(
+                reverse(
+                    "api-verify-email",
+                    kwargs={"uidb64": uid, "token": token},
+                )
             )
-        )
 
-        if getattr(settings, "SEND_EMAILS", False):
+        if verify_required:
             send_mail(
                 subject="Подтвердите регистрацию",
                 message=(
@@ -99,8 +102,8 @@ class RegisterView(APIView):
                 recipient_list=[email],
                 fail_silently=False,
             )
-        payload = {"ok": True}
-        if settings.DEBUG:
+        payload = {"ok": True, "verify_required": verify_required}
+        if settings.DEBUG and verify_url:
             payload["verify_url"] = verify_url
         return Response(payload, status=status.HTTP_201_CREATED)
 

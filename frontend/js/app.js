@@ -205,6 +205,7 @@ const FeedApp = (() => {
     const bar = loaderEl.querySelector(".video-loader__bar");
     const text = loaderEl.querySelector(".video-loader__text");
     const post = videoEl.closest(".post");
+    let lastPercent = 0;
 
     const getDuration = () => {
       const d = videoEl.duration;
@@ -219,6 +220,7 @@ const FeedApp = (() => {
 
     const update = () => {
       if (!videoEl.buffered?.length) return;
+      show();
       const end = videoEl.buffered.end(videoEl.buffered.length - 1);
       const duration = getDuration();
       if (!duration) {
@@ -229,8 +231,10 @@ const FeedApp = (() => {
         0,
         Math.min(100, Math.round((end / duration) * 100))
       );
+      lastPercent = percent;
       if (bar) bar.style.width = percent + "%";
       if (text) text.textContent = `Загрузка видео ${percent}%`;
+      if (percent >= 100) hide();
     };
 
     const hide = () => {
@@ -250,8 +254,10 @@ const FeedApp = (() => {
     videoEl.addEventListener("stalled", show);
     videoEl.addEventListener("progress", update);
     videoEl.addEventListener("loadedmetadata", update);
-    videoEl.addEventListener("canplay", hide);
-    videoEl.addEventListener("playing", hide);
+    videoEl.addEventListener("canplaythrough", () => {
+      if (lastPercent >= 100) hide();
+    });
+    videoEl.addEventListener("ended", hide);
     videoEl.addEventListener("error", showError);
 
     update();
