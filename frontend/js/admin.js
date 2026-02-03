@@ -4,6 +4,11 @@ const AdminApp = (() => {
   const progress = document.getElementById("adminUploadProgress");
   const bar = document.getElementById("adminUploadBar");
   const text = document.getElementById("adminUploadText");
+  const heroPanel = document.getElementById("heroPanel");
+  const heroForm = document.getElementById("heroForm");
+  const heroProgress = document.getElementById("heroUploadProgress");
+  const heroBar = document.getElementById("heroUploadBar");
+  const heroText = document.getElementById("heroUploadText");
   const logoutBtn = document.getElementById("logoutBtn");
   const adminUser = document.getElementById("adminUser");
 
@@ -21,6 +26,7 @@ const AdminApp = (() => {
     const isAdmin = Boolean(me.is_staff || me.is_superuser);
     if (!isAdmin) {
       if (listEl) listEl.innerHTML = "Нет доступа к модерации";
+      if (heroPanel) heroPanel.style.display = "none";
     }
     return { me, isAdmin };
   }
@@ -107,54 +113,90 @@ const AdminApp = (() => {
     }
   }
 
+  async function uploadWithProgress(
+    form,
+    progressEl,
+    barEl,
+    textEl,
+    url,
+    successText
+  ) {
+    if (!form) return;
+    if (progressEl) progressEl.style.display = "block";
+    if (barEl) barEl.style.width = "0%";
+    if (textEl) textEl.textContent = "Загрузка 0% (0 / 0 МБ)";
+
+    const csrf = await Auth.ensureCsrf();
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.withCredentials = true;
+    if (csrf) xhr.setRequestHeader("X-CSRFToken", csrf);
+
+    xhr.upload.addEventListener("progress", (evt) => {
+      if (!evt.lengthComputable) return;
+      const percent = Math.round((evt.loaded / evt.total) * 100);
+      const loadedMb = (evt.loaded / (1024 * 1024)).toFixed(1);
+      const totalMb = (evt.total / (1024 * 1024)).toFixed(1);
+      if (barEl) barEl.style.width = percent + "%";
+      if (textEl) {
+        textEl.textContent = `Загрузка ${percent}% (${loadedMb} / ${totalMb} МБ)`;
+      }
+    });
+
+    xhr.addEventListener("load", async () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (textEl) textEl.textContent = successText;
+        if (form) form.reset();
+        if (progressEl) {
+          setTimeout(() => {
+            progressEl.style.display = "none";
+          }, 600);
+        }
+      } else {
+        let msg = "Ошибка загрузки";
+        try {
+          const data = JSON.parse(xhr.responseText || "{}");
+          if (data?.detail) msg = data.detail;
+        } catch {}
+        if (textEl) textEl.textContent = msg;
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      if (textEl) textEl.textContent = "Ошибка сети";
+    });
+
+    xhr.send(new FormData(form));
+  }
+
   function wireUpload() {
     if (!uploadForm) return;
     uploadForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (progress) progress.style.display = "block";
-      if (bar) bar.style.width = "0%";
-      if (text) text.textContent = "Загрузка 0% (0 / 0 МБ)";
+      await uploadWithProgress(
+        uploadForm,
+        progress,
+        bar,
+        text,
+        "/api/videos/",
+        "Загрузка завершена"
+      );
+      await loadVideos();
+    });
+  }
 
-      const csrf = await Auth.ensureCsrf();
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/videos/");
-      xhr.withCredentials = true;
-      if (csrf) xhr.setRequestHeader("X-CSRFToken", csrf);
-
-      xhr.upload.addEventListener("progress", (evt) => {
-        if (!evt.lengthComputable) return;
-        const percent = Math.round((evt.loaded / evt.total) * 100);
-        const loadedMb = (evt.loaded / (1024 * 1024)).toFixed(1);
-        const totalMb = (evt.total / (1024 * 1024)).toFixed(1);
-        if (bar) bar.style.width = percent + "%";
-        if (text) text.textContent = `Загрузка ${percent}% (${loadedMb} / ${totalMb} МБ)`;
-      });
-
-      xhr.addEventListener("load", async () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          if (text) text.textContent = "Загрузка завершена";
-          if (uploadForm) uploadForm.reset();
-          await loadVideos();
-          if (progress) {
-            setTimeout(() => {
-              progress.style.display = "none";
-            }, 600);
-          }
-        } else {
-          let msg = "Ошибка загрузки";
-          try {
-            const data = JSON.parse(xhr.responseText || "{}");
-            if (data?.detail) msg = data.detail;
-          } catch {}
-          if (text) text.textContent = msg;
-        }
-      });
-
-      xhr.addEventListener("error", () => {
-        if (text) text.textContent = "Ошибка сети";
-      });
-
-      xhr.send(new FormData(uploadForm));
+  function wireHeroUpload() {
+    if (!heroForm) return;
+    heroForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await uploadWithProgress(
+        heroForm,
+        heroProgress,
+        heroBar,
+        heroText,
+        "/api/admin/hero/",
+        "Главный экран обновлён"
+      );
     });
   }
 
@@ -168,6 +210,9 @@ const AdminApp = (() => {
       });
     }
     wireUpload();
+    if (state.isAdmin) {
+      wireHeroUpload();
+    }
     if (state.isAdmin) {
       await loadVideos();
     }

@@ -1,11 +1,12 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 
-from .models import Video
+from .models import HeroVideo, Video
 from .serializers import AdminVideoSerializer
 
 
@@ -42,3 +43,28 @@ class AdminVideoRejectView(APIView):
         video.reject_reason = reason
         video.save(update_fields=["status", "reject_reason", "published_at"])
         return Response({"ok": True}, status=status.HTTP_200_OK)
+
+
+class AdminHeroUploadView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        file = request.FILES.get("file")
+        if not file:
+            return Response(
+                {"detail": "file required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        title = (request.data.get("title") or "").strip()
+        HeroVideo.objects.filter(is_active=True).update(is_active=False)
+        hero = HeroVideo.objects.create(
+            title=title,
+            file=file,
+            is_active=True,
+        )
+        return Response(
+            {"ok": True, "id": hero.id},
+            status=status.HTTP_201_CREATED,
+        )

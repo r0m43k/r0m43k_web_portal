@@ -29,6 +29,29 @@
   scroll-behavior: smooth;
 }
 
+.feed-page .topbar{
+  justify-content: center;
+}
+.feed-page .topbar__actions{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.feed-page .btn,
+.feed-page .btn--primary{
+  background: transparent;
+}
+.feed-page .btn:hover{
+  background: transparent;
+}
+.feed-page .pill{
+  background: transparent;
+}
+.feed-page .pill:hover{
+  background: transparent;
+}
+
 .post{
   position: relative;
   height: 100vh;

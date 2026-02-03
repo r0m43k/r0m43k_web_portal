@@ -24,6 +24,11 @@
 .admin__title{
   margin: 0 0 12px;
 }
+.admin__helper{
+  margin: -4px 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
 
 .admin__upload{
   display: grid;
@@ -38,6 +43,24 @@
   background: rgba(0,0,0,.35);
   color: var(--fg);
   padding: 10px 12px;
+}
+.admin__file::file-selector-button{
+  margin-right: 12px;
+  border: 1px solid var(--ring);
+  background: rgba(255,255,255,.08);
+  color: var(--fg);
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.admin__file::-webkit-file-upload-button{
+  margin-right: 12px;
+  border: 1px solid var(--ring);
+  background: rgba(255,255,255,.08);
+  color: var(--fg);
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
 }
 
 .admin__list{

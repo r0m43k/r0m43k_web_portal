@@ -374,6 +374,11 @@ const FeedApp = (() => {
     videoEl.addEventListener("pointercancel", onPointerUp);
   }
 
+  function isImageUrl(url) {
+    const clean = String(url || "").split("?")[0];
+    return /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(clean);
+  }
+
   async function loadHeroVideo() {
     if (!heroVideo) return;
 
@@ -384,6 +389,17 @@ const FeedApp = (() => {
       const data = await res.json();
       const url = data.file_url || data.file;
       if (!url) return;
+
+      if (isImageUrl(url)) {
+        const source = heroVideo.querySelector("source");
+        if (source) source.removeAttribute("src");
+        heroVideo.removeAttribute("src");
+        heroVideo.poster = url;
+        heroVideo.load();
+        if (heroLoader) heroLoader.classList.add("is-hidden");
+        if (heroPost) heroPost.classList.add("is-image");
+        return;
+      }
 
       heroVideo.loop = true;
       heroVideo.muted = true;

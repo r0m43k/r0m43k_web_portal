@@ -20,6 +20,22 @@
   </header>
 
   <main class="admin">
+    <section class="admin__panel" id="heroPanel">
+      <h2 class="admin__title">Главный экран</h2>
+      <div class="admin__helper">Загрузите видео или изображение для первого экрана.</div>
+      <form id="heroForm" class="admin__upload" enctype="multipart/form-data">
+        <input class="admin__input" name="title" placeholder="Название (необязательно)" />
+        <input class="admin__file" type="file" name="file" accept="video/*,image/*" required />
+        <button class="btn btn--primary" type="submit">Обновить главный экран</button>
+      </form>
+      <div class="upload-progress" id="heroUploadProgress" style="display:none;">
+        <div class="upload-progress__bar">
+          <span id="heroUploadBar"></span>
+        </div>
+        <div class="upload-progress__text" id="heroUploadText">Загрузка 0%</div>
+      </div>
+    </section>
+
     <section class="admin__panel">
       <h2 class="admin__title">Загрузка видео</h2>
       <form id="uploadForm" class="admin__upload" enctype="multipart/form-data">

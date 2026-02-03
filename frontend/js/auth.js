@@ -88,11 +88,13 @@ const Auth = (() => {
   async function wireTopbar() {
     const loginBtn = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
+    const adminBtn = document.getElementById("adminBtn");
     const userEl = document.getElementById("topbarUser");
     if (!loginBtn || !logoutBtn) return;
 
     loginBtn.hidden = true;
     logoutBtn.hidden = true;
+    if (adminBtn) adminBtn.hidden = true;
     if (userEl) userEl.hidden = true;
 
     const user = await me();
@@ -102,6 +104,9 @@ const Auth = (() => {
       if (userEl) {
         userEl.hidden = false;
         userEl.textContent = user.nickname || user.username || "user";
+      }
+      if (adminBtn) {
+        adminBtn.hidden = !(user.is_staff || user.is_superuser);
       }
       logoutBtn.addEventListener("click", async () => {
         await logout();
