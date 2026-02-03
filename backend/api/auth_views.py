@@ -1,6 +1,14 @@
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.core.validators import validate_email
 from django.middleware.csrf import get_token
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -15,11 +23,13 @@ class RegisterView(APIView):
 
     def post(self, request):
         username = (request.data.get("username") or "").strip()
+        nickname = (request.data.get("nickname") or "").strip()
+        email = (request.data.get("email") or "").strip()
         password = request.data.get("password") or ""
 
-        if not username or not password:
+        if not username or not password or not email or not nickname:
             return Response(
-                {"detail": "username and password required"},
+                {"detail": "username, nickname, email and password required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -35,9 +45,50 @@ class RegisterView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user = User.objects.create_user(username=username, password=password)
+        try:
+            validate_email(email)
+        except ValidationError:
+            return Response(
+                {"detail": "invalid email"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {"detail": "email already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=email,
+            first_name=nickname,
+            is_active=False,
+        )
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        verify_url = request.build_absolute_uri(
+            reverse(
+                "api-verify-email",
+                kwargs={"uidb64": uid, "token": token},
+            )
+        )
+
+        send_mail(
+            subject="Подтвердите регистрацию",
+            message=(
+                "Нажмите на ссылку, чтобы подтвердить email:\n"
+                f"{verify_url}\n\n"
+                "Если вы не регистрировались, просто игнорируйте это письмо."
+            ),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[email],
+            fail_silently=False,
+        )
         return Response(
-            {"id": user.id, "username": user.username},
+            {"ok": True},
             status=status.HTTP_201_CREATED,
         )
 
@@ -82,10 +133,15 @@ class LoginView(APIView):
         password = request.data.get("password") or ""
 
         user = authenticate(username=username, password=password)
-        if not user or not user.is_active:
+        if not user:
             return Response(
                 {"detail": "invalid credentials"},
                 status=status.HTTP_401_UNAUTHORIZED,
+            )
+        if not user.is_active:
+            return Response(
+                {"detail": "email not verified"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         refresh = RefreshToken.for_user(user)
@@ -203,3 +259,22 @@ class LogoutView(APIView):
         resp.delete_cookie(COOKIE_ACCESS, path="/")
         resp.delete_cookie(COOKIE_REFRESH, path="/api/auth/")
         return resp
+
+
+class VerifyEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except Exception:
+            return redirect("/login.html?verified=0")
+
+        if default_token_generator.check_token(user, token):
+            if not user.is_active:
+                user.is_active = True
+                user.save(update_fields=["is_active"])
+            return redirect("/login.html?verified=1")
+
+        return redirect("/login.html?verified=0")

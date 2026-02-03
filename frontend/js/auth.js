@@ -45,15 +45,25 @@ const Auth = (() => {
       method: "POST",
       body: JSON.stringify({ username, password }),
     });
-    return res.ok;
+    let detail = "";
+    try {
+      const data = await res.json();
+      detail = data?.detail || "";
+    } catch {}
+    return { ok: res.ok, detail };
   }
 
-  async function register(username, password) {
+  async function register(username, password, nickname, email) {
     const res = await json("/api/auth/register/", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, nickname, email }),
     });
-    return res.ok;
+    let detail = "";
+    try {
+      const data = await res.json();
+      detail = data?.detail || "";
+    } catch {}
+    return { ok: res.ok, detail };
   }
 
   async function logout() {
@@ -64,12 +74,17 @@ const Auth = (() => {
   async function wireTopbar() {
     const loginBtn = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
+    const userEl = document.getElementById("topbarUser");
     if (!loginBtn || !logoutBtn) return;
 
     const user = await me();
     if (user) {
       loginBtn.hidden = true;
       logoutBtn.hidden = false;
+      if (userEl) {
+        userEl.hidden = false;
+        userEl.textContent = user.nickname || user.username || "user";
+      }
       logoutBtn.addEventListener("click", async () => {
         await logout();
         location.reload();
@@ -77,6 +92,7 @@ const Auth = (() => {
     } else {
       loginBtn.hidden = false;
       logoutBtn.hidden = true;
+      if (userEl) userEl.hidden = true;
     }
   }
 

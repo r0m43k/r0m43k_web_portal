@@ -9,9 +9,20 @@
 <body class="auth-page">
 
   <div class="auth-card">
-    <h1 class="auth-title">Регистрация</h1>
+    <h1 class="auth-title">Создать аккаунт</h1>
+    <div class="auth-sub">Давайте познакомимся поближе</div>
 
     <form id="regForm" class="auth-form">
+      <label class="field">
+        <span>Ник</span>
+        <input name="nickname" autocomplete="nickname" required />
+      </label>
+
+      <label class="field">
+        <span>Email</span>
+        <input name="email" type="email" autocomplete="email" required />
+      </label>
+
       <label class="field">
         <span>Логин</span>
         <input name="username" autocomplete="username" required />
@@ -22,7 +33,7 @@
         <input name="password" type="password" autocomplete="new-password" required />
       </label>
 
-      <button class="btn btn--primary" type="submit">Создать</button>
+      <button class="btn btn--primary" type="submit">Создать аккаунт</button>
       <div class="auth-error" id="err"></div>
     </form>
 
@@ -40,12 +51,17 @@
       err.textContent = "";
 
       const fd = new FormData(e.target);
+      const nickname = fd.get("nickname");
+      const email = fd.get("email");
       const username = fd.get("username");
       const password = fd.get("password");
 
-      const ok = await Auth.register(username, password);
-      if (ok) location.href = "/login.html";
-      else err.textContent = "Не удалось создать пользователя (возможно, логин занят).";
+      const res = await Auth.register(username, password, nickname, email);
+      if (res.ok) {
+        err.textContent = "Письмо с подтверждением отправлено на email.";
+      } else {
+        err.textContent = res.detail || "Не удалось создать пользователя.";
+      }
     });
   </script>
 </body>

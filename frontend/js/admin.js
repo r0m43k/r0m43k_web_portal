@@ -5,6 +5,7 @@ const AdminApp = (() => {
   const bar = document.getElementById("adminUploadBar");
   const text = document.getElementById("adminUploadText");
   const logoutBtn = document.getElementById("logoutBtn");
+  const adminUser = document.getElementById("adminUser");
 
   async function ensureAdmin() {
     const me = await Auth.me();
@@ -16,6 +17,11 @@ const AdminApp = (() => {
       location.href = "/";
       return null;
     }
+    if (adminUser) {
+      adminUser.hidden = false;
+      adminUser.textContent = me.nickname || me.username || "admin";
+    }
+    if (logoutBtn) logoutBtn.hidden = false;
     return me;
   }
 

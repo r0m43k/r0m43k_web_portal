@@ -9,7 +9,8 @@
 <body class="auth-page">
 
   <div class="auth-card">
-    <h1 class="auth-title">Вход</h1>
+    <h1 class="auth-title">Добро пожаловать</h1>
+    <div class="auth-sub" id="loginNote">Войдите в аккаунт</div>
 
     <form id="loginForm" class="auth-form">
       <label class="field">
@@ -43,10 +44,18 @@
       const username = fd.get("username");
       const password = fd.get("password");
 
-      const ok = await Auth.login(username, password);
-      if (ok) location.href = "/";
-      else err.textContent = "Неверный логин/пароль или сервер недоступен.";
+      const res = await Auth.login(username, password);
+      if (res.ok) location.href = "/";
+      else err.textContent = res.detail || "Неверный логин/пароль.";
     });
+
+    const note = document.getElementById("loginNote");
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("verified") === "1") {
+      note.textContent = "Email подтвержден. Можно входить.";
+    } else if (params.get("verified") === "0") {
+      note.textContent = "Ссылка подтверждения недействительна.";
+    }
   </script>
 </body>
 </html>

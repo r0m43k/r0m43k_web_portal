@@ -43,18 +43,18 @@ class HeroVideoSerializer(serializers.ModelSerializer):
 
 
 class VideoCommentSerializer(serializers.ModelSerializer):
-    user = serializers.CharField(source="user.username", read_only=True)
+    user = serializers.SerializerMethodField()
 
     class Meta:
         model = VideoComment
         fields = ["id", "user", "text", "created_at"]
 
+    def get_user(self, obj):
+        return obj.user.first_name or obj.user.username
+
 
 class AdminVideoSerializer(serializers.ModelSerializer):
-    owner_username = serializers.CharField(
-        source="owner.username",
-        read_only=True,
-    )
+    owner_username = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
     likes_count = serializers.IntegerField(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
@@ -73,6 +73,9 @@ class AdminVideoSerializer(serializers.ModelSerializer):
             "likes_count",
             "comments_count",
         ]
+
+    def get_owner_username(self, obj):
+        return obj.owner.first_name or obj.owner.username
 
     def get_file_url(self, obj):
         request = self.context.get("request")

@@ -6,6 +6,7 @@ from .auth_views import (
     LogoutView,
     RefreshView,
     RegisterView,
+    VerifyEmailView,
 )
 from .admin_views import (
     AdminVideoApproveView,
@@ -24,6 +25,11 @@ urlpatterns = [
     path("auth/csrf/", CsrfView.as_view()),
     path("auth/register/", RegisterView.as_view()),
     path("auth/login/", LoginView.as_view()),
+    path(
+        "auth/verify/<str:uidb64>/<str:token>/",
+        VerifyEmailView.as_view(),
+        name="api-verify-email",
+    ),
     path("auth/refresh/", RefreshView.as_view()),
     path("auth/logout/", LogoutView.as_view()),
     path("auth/me/", me),
