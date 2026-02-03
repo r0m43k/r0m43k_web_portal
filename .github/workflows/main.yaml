@@ -133,13 +133,21 @@ jobs:
             sudo docker compose -f docker-compose.production.yml up -d --remove-orphans
 
             echo "Waiting for Postgres..."
+            ready=0
             for i in {1..30}; do
               if sudo docker compose -f docker-compose.production.yml exec -T postgres pg_isready -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" >/dev/null 2>&1; then
                 echo "Postgres is ready!"
+                ready=1
                 break
               fi
               sleep 2
             done
+            if [ "$ready" -ne 1 ]; then
+              echo "Postgres is not ready. Dumping compose status and logs."
+              sudo docker compose -f docker-compose.production.yml ps
+              sudo docker compose -f docker-compose.production.yml logs --tail=200 postgres || true
+              exit 1
+            fi
 
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
