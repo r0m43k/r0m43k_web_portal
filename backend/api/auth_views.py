@@ -26,7 +26,7 @@ class RegisterView(APIView):
     def post(self, request):
         username = (request.data.get("username") or "").strip()
         nickname = (request.data.get("nickname") or "").strip()
-        email = (request.data.get("email") or "").strip()
+        email = (request.data.get("email") or "").strip().lower()
         password = request.data.get("password") or ""
 
         if not password or not email or not nickname:
@@ -40,23 +40,6 @@ class RegisterView(APIView):
                 {"detail": "password too short (min 8)"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        if not re.search(r"[A-Z]", password):
-            return Response(
-                {"detail": "password must contain uppercase letter"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not re.search(r"[a-z]", password):
-            return Response(
-                {"detail": "password must contain lowercase letter"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not re.search(r"\d", password):
-            return Response(
-                {"detail": "password must contain a digit"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         if username and User.objects.filter(username=username).exists():
             return Response(
                 {"detail": "username already exists"},
@@ -71,7 +54,7 @@ class RegisterView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if User.objects.filter(email=email).exists():
+        if User.objects.filter(email__iexact=email).exists():
             return Response(
                 {"detail": "email already exists"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -114,10 +97,10 @@ class RegisterView(APIView):
             recipient_list=[email],
             fail_silently=False,
         )
-        return Response(
-            {"ok": True},
-            status=status.HTTP_201_CREATED,
-        )
+        payload = {"ok": True}
+        if settings.DEBUG:
+            payload["verify_url"] = verify_url
+        return Response(payload, status=status.HTTP_201_CREATED)
 
 
 COOKIE_ACCESS = "access"
@@ -156,17 +139,45 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        login = (request.data.get("login") or "").strip()
         username = (request.data.get("username") or "").strip()
-        email = (request.data.get("email") or "").strip()
+        email = (request.data.get("email") or "").strip().lower()
+        nickname = (request.data.get("nickname") or "").strip()
         password = request.data.get("password") or ""
 
-        if email and not username:
-            try:
-                username = User.objects.get(email=email).username
-            except User.DoesNotExist:
-                username = ""
+        if login and not username and not email and not nickname:
+            if "@" in login:
+                email = login.lower()
+            else:
+                username = login
+                nickname = login
 
-        user = authenticate(username=username, password=password)
+        user = None
+
+        if email:
+            user_obj = User.objects.filter(email__iexact=email).first()
+            if user_obj:
+                user = authenticate(
+                    username=user_obj.username,
+                    password=password,
+                )
+        elif username:
+            user = authenticate(username=username, password=password)
+
+        if not user and nickname:
+            qs = User.objects.filter(first_name__iexact=nickname)
+            if qs.count() > 1:
+                return Response(
+                    {"detail": "nickname not unique; use email or username"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            user_obj = qs.first()
+            if user_obj:
+                user = authenticate(
+                    username=user_obj.username,
+                    password=password,
+                )
+
         if not user:
             return Response(
                 {"detail": "invalid credentials"},

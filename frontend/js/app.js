@@ -390,7 +390,7 @@ const FeedApp = (() => {
   }
 
   function createPost(v) {
-    const src = v.file_url || v.file;
+    const src = v.file_url || v.file || "";
     const title = v.title ?? "Без названия";
     const likes = typeof v.likes_count === "number" ? v.likes_count : 0;
     const comments = typeof v.comments_count === "number" ? v.comments_count : 0;
@@ -436,7 +436,9 @@ const FeedApp = (() => {
     `;
 
     const videoEl = post.querySelector(".post__video");
-    videoEl.src = src;
+    if (src) {
+      videoEl.src = src;
+    }
     videoEl.loop = true;
 
     videoEl.setAttribute("playsinline", "");
@@ -491,8 +493,23 @@ const FeedApp = (() => {
     return post;
   }
 
+  function normalizeApiUrl(url) {
+    try {
+      const u = new URL(url, window.location.origin);
+      if (u.origin === window.location.origin) {
+        return u.pathname + u.search;
+      }
+      if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+        return u.pathname + u.search;
+      }
+      return u.href;
+    } catch {
+      return url;
+    }
+  }
+
   async function fetchVideos() {
-    const res = await fetch(nextUrl.replace("http://localhost", ""), { credentials: "include" });
+    const res = await fetch(normalizeApiUrl(nextUrl), { credentials: "include" });
     if (!res.ok) throw new Error("API " + res.status);
 
     const data = await res.json();

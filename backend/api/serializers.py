@@ -31,9 +31,17 @@ class VideoSerializer(serializers.ModelSerializer):
 
 
 class VideoCreateSerializer(serializers.ModelSerializer):
+    title = serializers.CharField(required=False, allow_blank=True)
+
     class Meta:
         model = Video
         fields = ["title", "file"]
+
+    def validate(self, attrs):
+        title = (attrs.get("title") or "").strip()
+        if not title:
+            attrs["title"] = "Без названия"
+        return attrs
 
 
 class HeroVideoSerializer(serializers.ModelSerializer):

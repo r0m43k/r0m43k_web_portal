@@ -33,6 +33,11 @@
         <input name="password2" type="password" autocomplete="new-password" required />
       </label>
 
+      <div class="auth-hints" id="passHints">
+        <div class="auth-hint" data-rule="len">Минимум 8 символов</div>
+        <div class="auth-hint" data-rule="match">Пароли совпадают</div>
+      </div>
+
       <button class="btn btn--primary" type="submit">Создать аккаунт</button>
       <div class="auth-error" id="err"></div>
     </form>
@@ -58,9 +63,6 @@
 
       const issues = [];
       if (password.length < 8) issues.push("Пароль должен быть не короче 8 символов.");
-      if (!/[A-Z]/.test(password)) issues.push("Добавьте заглавную букву.");
-      if (!/[a-z]/.test(password)) issues.push("Добавьте строчную букву.");
-      if (!/\\d/.test(password)) issues.push("Добавьте цифру.");
       if (password !== password2) issues.push("Пароли не совпадают.");
       if (!email) issues.push("Введите email.");
       if (!nickname) issues.push("Введите ник.");
@@ -82,6 +84,28 @@
     });
 
     const emailInput = document.querySelector('input[name="email"]');
+    const passInput = document.querySelector('input[name="password"]');
+    const pass2Input = document.querySelector('input[name="password2"]');
+    const hints = document.getElementById("passHints");
+
+    function updateHints() {
+      if (!hints) return;
+      const pass = passInput?.value || "";
+      const pass2 = pass2Input?.value || "";
+      const rules = {
+        len: pass.length >= 8,
+        match: pass.length > 0 && pass === pass2,
+      };
+      hints.querySelectorAll(".auth-hint").forEach((el) => {
+        const key = el.getAttribute("data-rule");
+        const ok = rules[key];
+        el.classList.toggle("is-ok", Boolean(ok));
+      });
+    }
+
+    if (passInput) passInput.addEventListener("input", updateHints);
+    if (pass2Input) pass2Input.addEventListener("input", updateHints);
+
     if (emailInput) {
       emailInput.addEventListener("input", () => {
         const cleaned = emailInput.value

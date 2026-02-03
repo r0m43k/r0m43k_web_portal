@@ -40,35 +40,47 @@ const Auth = (() => {
     }
   }
 
-  async function login(email, password) {
-    const res = await json("/api/auth/login/", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    let detail = "";
+  async function login(login, password) {
     try {
-      const data = await res.json();
-      detail = data?.detail || "";
-    } catch {}
-    return { ok: res.ok, detail };
+      const res = await json("/api/auth/login/", {
+        method: "POST",
+        body: JSON.stringify({ login, password }),
+      });
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail || "";
+      } catch {}
+      return { ok: res.ok, detail };
+    } catch {
+      return { ok: false, detail: "Сеть недоступна. Попробуйте позже." };
+    }
   }
 
   async function register(password, nickname, email) {
-    const res = await json("/api/auth/register/", {
-      method: "POST",
-      body: JSON.stringify({ password, nickname, email }),
-    });
-    let detail = "";
     try {
-      const data = await res.json();
-      detail = data?.detail || "";
-    } catch {}
-    return { ok: res.ok, detail };
+      const res = await json("/api/auth/register/", {
+        method: "POST",
+        body: JSON.stringify({ password, nickname, email }),
+      });
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail || "";
+      } catch {}
+      return { ok: res.ok, detail };
+    } catch {
+      return { ok: false, detail: "Сеть недоступна. Попробуйте позже." };
+    }
   }
 
   async function logout() {
-    const res = await json("/api/auth/logout/", { method: "POST" });
-    return res.ok;
+    try {
+      const res = await json("/api/auth/logout/", { method: "POST" });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   async function wireTopbar() {

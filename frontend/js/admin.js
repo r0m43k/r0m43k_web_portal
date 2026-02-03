@@ -18,12 +18,11 @@ const AdminApp = (() => {
       adminUser.textContent = me.nickname || me.username || "admin";
     }
     if (logoutBtn) logoutBtn.hidden = false;
-    if (!me.is_staff && !me.is_superuser) {
-      if (listEl) listEl.innerHTML = "Нет доступа";
-      if (uploadForm) uploadForm.style.display = "none";
-      return null;
+    const isAdmin = Boolean(me.is_staff || me.is_superuser);
+    if (!isAdmin) {
+      if (listEl) listEl.innerHTML = "Нет доступа к модерации";
     }
-    return me;
+    return { me, isAdmin };
   }
 
   function statusLabel(status) {
@@ -130,10 +129,22 @@ const AdminApp = (() => {
       });
 
       xhr.addEventListener("load", async () => {
-        if (xhr.status >= 200 && xhr.status < 400) {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (text) text.textContent = "Загрузка завершена";
+          if (uploadForm) uploadForm.reset();
           await loadVideos();
-        } else if (text) {
-          text.textContent = "Ошибка загрузки";
+          if (progress) {
+            setTimeout(() => {
+              progress.style.display = "none";
+            }, 600);
+          }
+        } else {
+          let msg = "Ошибка загрузки";
+          try {
+            const data = JSON.parse(xhr.responseText || "{}");
+            if (data?.detail) msg = data.detail;
+          } catch {}
+          if (text) text.textContent = msg;
         }
       });
 
@@ -146,7 +157,8 @@ const AdminApp = (() => {
   }
 
   async function boot() {
-    await ensureAdmin();
+    const state = await ensureAdmin();
+    if (!state) return;
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async () => {
         await Auth.logout();
@@ -154,7 +166,9 @@ const AdminApp = (() => {
       });
     }
     wireUpload();
-    await loadVideos();
+    if (state.isAdmin) {
+      await loadVideos();
+    }
   }
 
   return { boot };
