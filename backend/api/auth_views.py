@@ -86,17 +86,18 @@ class RegisterView(APIView):
             )
         )
 
-        send_mail(
-            subject="Подтвердите регистрацию",
-            message=(
-                "Нажмите на ссылку, чтобы подтвердить email:\n"
-                f"{verify_url}\n\n"
-                "Если вы не регистрировались, просто игнорируйте это письмо."
-            ),
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[email],
-            fail_silently=False,
-        )
+        if getattr(settings, "SEND_EMAILS", False):
+            send_mail(
+                subject="Подтвердите регистрацию",
+                message=(
+                    "Нажмите на ссылку, чтобы подтвердить email:\n"
+                    f"{verify_url}\n\n"
+                    "Если вы не регистрировались, просто игнорируйте это письмо."
+                ),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                recipient_list=[email],
+                fail_silently=False,
+            )
         payload = {"ok": True}
         if settings.DEBUG:
             payload["verify_url"] = verify_url

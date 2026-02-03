@@ -47,11 +47,12 @@ const Auth = (() => {
         body: JSON.stringify({ login, password }),
       });
       let detail = "";
+      let data = null;
       try {
-        const data = await res.json();
+        data = await res.json();
         detail = data?.detail || "";
       } catch {}
-      return { ok: res.ok, detail };
+      return { ok: res.ok, detail, data };
     } catch {
       return { ok: false, detail: "Сеть недоступна. Попробуйте позже." };
     }
@@ -64,11 +65,12 @@ const Auth = (() => {
         body: JSON.stringify({ password, nickname, email }),
       });
       let detail = "";
+      let data = null;
       try {
-        const data = await res.json();
+        data = await res.json();
         detail = data?.detail || "";
       } catch {}
-      return { ok: res.ok, detail };
+      return { ok: res.ok, detail, data };
     } catch {
       return { ok: false, detail: "Сеть недоступна. Попробуйте позже." };
     }

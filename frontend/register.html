@@ -77,6 +77,17 @@
       if (res.ok) {
         err.classList.add("is-success");
         err.textContent = "Письмо с подтверждением отправлено на email.";
+        const verifyUrl = res.data?.verify_url;
+        if (verifyUrl) {
+          const br = document.createElement("br");
+          const link = document.createElement("a");
+          link.href = verifyUrl;
+          link.textContent = "Подтвердить email";
+          link.target = "_blank";
+          link.rel = "noopener";
+          err.appendChild(br);
+          err.appendChild(link);
+        }
       } else {
         err.classList.remove("is-success");
         err.textContent = res.detail || "Не удалось создать пользователя.";

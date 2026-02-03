@@ -113,7 +113,7 @@ const AdminApp = (() => {
       e.preventDefault();
       if (progress) progress.style.display = "block";
       if (bar) bar.style.width = "0%";
-      if (text) text.textContent = "Загрузка 0%";
+      if (text) text.textContent = "Загрузка 0% (0 / 0 МБ)";
 
       const csrf = await Auth.ensureCsrf();
       const xhr = new XMLHttpRequest();
@@ -124,8 +124,10 @@ const AdminApp = (() => {
       xhr.upload.addEventListener("progress", (evt) => {
         if (!evt.lengthComputable) return;
         const percent = Math.round((evt.loaded / evt.total) * 100);
+        const loadedMb = (evt.loaded / (1024 * 1024)).toFixed(1);
+        const totalMb = (evt.total / (1024 * 1024)).toFixed(1);
         if (bar) bar.style.width = percent + "%";
-        if (text) text.textContent = `Загрузка ${percent}%`;
+        if (text) text.textContent = `Загрузка ${percent}% (${loadedMb} / ${totalMb} МБ)`;
       });
 
       xhr.addEventListener("load", async () => {

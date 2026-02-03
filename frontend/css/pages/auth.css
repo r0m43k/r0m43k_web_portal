@@ -22,8 +22,8 @@
 .auth-form{ display:flex; flex-direction:column; gap: 12px; }
 
 .auth-form{ align-items: center; }
-.field{ width: 100%; max-width: 340px; }
-.field span{ display:block; font-size:12px; color: var(--muted); margin-bottom: 6px; text-align: left; }
+.field{ width: 100%; max-width: 340px; margin: 0 auto; }
+.field span{ display:block; font-size:12px; color: var(--muted); margin-bottom: 6px; text-align: center; }
 .field input{
   width:100%;
   padding: 12px 12px;
@@ -37,6 +37,7 @@
 
 .auth-error{ color: #ffb4b4; font-size: 13px; min-height: 18px; }
 .auth-error.is-success{ color: #b8f3c6; }
+.auth-error a{ color: inherit; text-decoration: underline; }
 
 .auth-hints{
   display: grid;

@@ -206,10 +206,29 @@ const FeedApp = (() => {
     const text = loaderEl.querySelector(".video-loader__text");
     const post = videoEl.closest(".post");
 
+    const getDuration = () => {
+      const d = videoEl.duration;
+      if (Number.isFinite(d) && d > 0) return d;
+      const s = videoEl.seekable;
+      if (s && s.length) {
+        const end = s.end(s.length - 1);
+        if (Number.isFinite(end) && end > 0) return end;
+      }
+      return 0;
+    };
+
     const update = () => {
-      if (!videoEl.duration || !videoEl.buffered?.length) return;
+      if (!videoEl.buffered?.length) return;
       const end = videoEl.buffered.end(videoEl.buffered.length - 1);
-      const percent = Math.max(0, Math.min(100, Math.round((end / videoEl.duration) * 100)));
+      const duration = getDuration();
+      if (!duration) {
+        if (text) text.textContent = "Загрузка видео...";
+        return;
+      }
+      const percent = Math.max(
+        0,
+        Math.min(100, Math.round((end / duration) * 100))
+      );
       if (bar) bar.style.width = percent + "%";
       if (text) text.textContent = `Загрузка видео ${percent}%`;
     };
@@ -360,11 +379,6 @@ const FeedApp = (() => {
       const url = data.file_url || data.file;
       if (!url) return;
 
-      heroVideo.src = url;
-
-      const source = heroVideo.querySelector("source");
-      if (source) source.src = url;
-
       heroVideo.loop = true;
       heroVideo.muted = true;
       heroVideo.autoplay = true;
@@ -372,6 +386,10 @@ const FeedApp = (() => {
       heroVideo.setAttribute("playsinline", "");
 
       attachVideoLoader(heroVideo, heroLoader);
+
+      const source = heroVideo.querySelector("source");
+      if (source) source.src = url;
+      heroVideo.src = url;
 
       heroVideo.load();
       heroVideo.play().catch(() => {});
@@ -436,18 +454,20 @@ const FeedApp = (() => {
     `;
 
     const videoEl = post.querySelector(".post__video");
-    if (src) {
-      videoEl.src = src;
-    }
-    videoEl.loop = true;
+    const loader = post.querySelector(".video-loader");
 
+    videoEl.loop = true;
     videoEl.setAttribute("playsinline", "");
     videoEl.addEventListener("loadedmetadata", () => {
       try { videoEl.currentTime = 0.01; } catch {}
     }, { once: true });
 
-    const loader = post.querySelector(".video-loader");
     attachVideoLoader(videoEl, loader);
+
+    if (src) {
+      videoEl.src = src;
+      videoEl.load();
+    }
 
     if (src) enqueuePreload(src);
 
