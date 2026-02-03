@@ -92,7 +92,8 @@ class RegisterView(APIView):
                 message=(
                     "Нажмите на ссылку, чтобы подтвердить email:\n"
                     f"{verify_url}\n\n"
-                    "Если вы не регистрировались, просто игнорируйте это письмо."
+                    "Если вы не регистрировались, просто "
+                    "игнорируйте это письмо."
                 ),
                 from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                 recipient_list=[email],
