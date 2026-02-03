@@ -14,8 +14,8 @@
 
     <form id="loginForm" class="auth-form">
       <label class="field">
-        <span>Логин</span>
-        <input name="username" autocomplete="username" required />
+        <span>Email</span>
+        <input name="email" type="email" autocomplete="email" required />
       </label>
 
       <label class="field">
@@ -41,10 +41,10 @@
       err.textContent = "";
 
       const fd = new FormData(e.target);
-      const username = fd.get("username");
+      const email = fd.get("email");
       const password = fd.get("password");
 
-      const res = await Auth.login(username, password);
+      const res = await Auth.login(email, password);
       if (res.ok) location.href = "/";
       else err.textContent = res.detail || "Неверный логин/пароль.";
     });

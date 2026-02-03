@@ -40,10 +40,10 @@ const Auth = (() => {
     }
   }
 
-  async function login(username, password) {
+  async function login(email, password) {
     const res = await json("/api/auth/login/", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     });
     let detail = "";
     try {
@@ -53,10 +53,10 @@ const Auth = (() => {
     return { ok: res.ok, detail };
   }
 
-  async function register(username, password, nickname, email) {
+  async function register(password, nickname, email) {
     const res = await json("/api/auth/register/", {
       method: "POST",
-      body: JSON.stringify({ username, password, nickname, email }),
+      body: JSON.stringify({ password, nickname, email }),
     });
     let detail = "";
     try {

@@ -12,7 +12,7 @@
     <h1 class="auth-title">Создать аккаунт</h1>
     <div class="auth-sub">Давайте познакомимся поближе</div>
 
-    <form id="regForm" class="auth-form">
+    <form id="regForm" class="auth-form" novalidate>
       <label class="field">
         <span>Ник</span>
         <input name="nickname" autocomplete="nickname" required />
@@ -24,13 +24,13 @@
       </label>
 
       <label class="field">
-        <span>Логин</span>
-        <input name="username" autocomplete="username" required />
+        <span>Пароль</span>
+        <input name="password" type="password" autocomplete="new-password" required />
       </label>
 
       <label class="field">
-        <span>Пароль</span>
-        <input name="password" type="password" autocomplete="new-password" required />
+        <span>Повторите пароль</span>
+        <input name="password2" type="password" autocomplete="new-password" required />
       </label>
 
       <button class="btn btn--primary" type="submit">Создать аккаунт</button>
@@ -51,12 +51,27 @@
       err.textContent = "";
 
       const fd = new FormData(e.target);
-      const nickname = fd.get("nickname");
-      const email = fd.get("email");
-      const username = fd.get("username");
-      const password = fd.get("password");
+      const nickname = (fd.get("nickname") || "").trim();
+      const email = (fd.get("email") || "").trim();
+      const password = fd.get("password") || "";
+      const password2 = fd.get("password2") || "";
 
-      const res = await Auth.register(username, password, nickname, email);
+      const issues = [];
+      if (password.length < 8) issues.push("Пароль должен быть не короче 8 символов.");
+      if (!/[A-Z]/.test(password)) issues.push("Добавьте заглавную букву.");
+      if (!/[a-z]/.test(password)) issues.push("Добавьте строчную букву.");
+      if (!/\\d/.test(password)) issues.push("Добавьте цифру.");
+      if (password !== password2) issues.push("Пароли не совпадают.");
+      if (!email) issues.push("Введите email.");
+      if (!nickname) issues.push("Введите ник.");
+
+      if (issues.length) {
+        err.classList.remove("is-success");
+        err.textContent = issues[0];
+        return;
+      }
+
+      const res = await Auth.register(password, nickname, email);
       if (res.ok) {
         err.classList.add("is-success");
         err.textContent = "Письмо с подтверждением отправлено на email.";
@@ -65,6 +80,17 @@
         err.textContent = res.detail || "Не удалось создать пользователя.";
       }
     });
+
+    const emailInput = document.querySelector('input[name="email"]');
+    if (emailInput) {
+      emailInput.addEventListener("input", () => {
+        const cleaned = emailInput.value
+          .replace(/[^a-zA-Z0-9@._+-]/g, "")
+          .replace(/\\s+/g, "")
+          .toLowerCase();
+        if (cleaned !== emailInput.value) emailInput.value = cleaned;
+      });
+    }
   </script>
 </body>
 </html>

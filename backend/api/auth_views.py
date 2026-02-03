@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -27,9 +29,9 @@ class RegisterView(APIView):
         email = (request.data.get("email") or "").strip()
         password = request.data.get("password") or ""
 
-        if not username or not password or not email or not nickname:
+        if not password or not email or not nickname:
             return Response(
-                {"detail": "username, nickname, email and password required"},
+                {"detail": "nickname, email and password required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -39,7 +41,23 @@ class RegisterView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if User.objects.filter(username=username).exists():
+        if not re.search(r"[A-Z]", password):
+            return Response(
+                {"detail": "password must contain uppercase letter"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not re.search(r"[a-z]", password):
+            return Response(
+                {"detail": "password must contain lowercase letter"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not re.search(r"\d", password):
+            return Response(
+                {"detail": "password must contain a digit"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if username and User.objects.filter(username=username).exists():
             return Response(
                 {"detail": "username already exists"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -58,6 +76,15 @@ class RegisterView(APIView):
                 {"detail": "email already exists"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if not username:
+            seed = (email.split("@")[0] or nickname).lower()
+            base = re.sub(r"[^a-z0-9_]+", "", seed) or "user"
+            username = base
+            i = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base}{i}"
+                i += 1
 
         user = User.objects.create_user(
             username=username,
@@ -130,7 +157,14 @@ class LoginView(APIView):
 
     def post(self, request):
         username = (request.data.get("username") or "").strip()
+        email = (request.data.get("email") or "").strip()
         password = request.data.get("password") or ""
+
+        if email and not username:
+            try:
+                username = User.objects.get(email=email).username
+            except User.DoesNotExist:
+                username = ""
 
         user = authenticate(username=username, password=password)
         if not user:
