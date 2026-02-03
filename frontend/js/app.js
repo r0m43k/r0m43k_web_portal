@@ -237,6 +237,15 @@ const FeedApp = (() => {
       if (percent >= 100) hide();
     };
 
+    const settleToHundred = () => {
+      if (lastPercent >= 95 || videoEl.readyState >= 3) {
+        lastPercent = 100;
+        if (bar) bar.style.width = "100%";
+        if (text) text.textContent = "Загрузка видео 100%";
+        hide();
+      }
+    };
+
     const hide = () => {
       loaderEl.classList.add("is-hidden");
       if (post) post.classList.remove("is-loading");
@@ -257,6 +266,8 @@ const FeedApp = (() => {
     videoEl.addEventListener("canplaythrough", () => {
       if (lastPercent >= 100) hide();
     });
+    videoEl.addEventListener("canplay", settleToHundred);
+    videoEl.addEventListener("playing", settleToHundred);
     videoEl.addEventListener("ended", hide);
     videoEl.addEventListener("error", showError);
 

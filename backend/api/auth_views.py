@@ -59,6 +59,11 @@ class RegisterView(APIView):
                 {"detail": "email already exists"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if User.objects.filter(first_name__iexact=nickname).exists():
+            return Response(
+                {"detail": "nickname already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not username:
             seed = (email.split("@")[0] or nickname).lower()

@@ -9,6 +9,7 @@ const AdminApp = (() => {
   const heroProgress = document.getElementById("heroUploadProgress");
   const heroBar = document.getElementById("heroUploadBar");
   const heroText = document.getElementById("heroUploadText");
+  const heroPreview = document.getElementById("heroPreview");
   const logoutBtn = document.getElementById("logoutBtn");
   const adminUser = document.getElementById("adminUser");
 
@@ -44,6 +45,11 @@ const AdminApp = (() => {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function isImageUrl(url) {
+    const clean = String(url || "").split("?")[0];
+    return /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(clean);
   }
 
   function renderVideoCard(v) {
@@ -197,7 +203,35 @@ const AdminApp = (() => {
         "/api/admin/hero/",
         "Главный экран обновлён"
       );
+      await loadHeroPreview();
     });
+  }
+
+  async function loadHeroPreview() {
+    if (!heroPreview) return;
+    heroPreview.innerHTML = `<div class="hero-preview__empty">Загрузка...</div>`;
+    try {
+      const res = await fetch("/api/hero/", { credentials: "include" });
+      if (!res.ok) {
+        heroPreview.innerHTML = `<div class="hero-preview__empty">Нет загруженного превью</div>`;
+        return;
+      }
+      const data = await res.json();
+      const url = data.file_url || data.file;
+      if (!url) {
+        heroPreview.innerHTML = `<div class="hero-preview__empty">Нет загруженного превью</div>`;
+        return;
+      }
+      if (isImageUrl(url)) {
+        heroPreview.innerHTML = `<img src="${url}" alt="Hero preview" />`;
+        return;
+      }
+      heroPreview.innerHTML = `
+        <video src="${url}" muted playsinline controls></video>
+      `;
+    } catch {
+      heroPreview.innerHTML = `<div class="hero-preview__empty">Не удалось загрузить превью</div>`;
+    }
   }
 
   async function boot() {
@@ -212,6 +246,7 @@ const AdminApp = (() => {
     wireUpload();
     if (state.isAdmin) {
       wireHeroUpload();
+      await loadHeroPreview();
     }
     if (state.isAdmin) {
       await loadVideos();
