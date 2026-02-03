@@ -178,6 +178,26 @@ jobs:
       - name: Check HTTPS returns something
         run: |
           curl -kIsS "https://${{ secrets.HOST }}/" | head -n 1 | grep -qE "200|301|302"
+      - name: Check public endpoints
+        run: |
+          set -euo pipefail
+          base="https://${{ secrets.HOST }}"
+          checks=(
+            "/ 200|301|302"
+            "/admin/ 200|301|302|403"
+            "/api/health/ 200"
+            "/api/hero/ 200|404"
+            "/api/videos/ 200"
+            "/api/auth/csrf/ 200"
+            "/api/auth/me/ 200|401"
+          )
+          for item in "${checks[@]}"; do
+            path="${item%% *}"
+            code_re="${item#* }"
+            status=$(curl -kIsS "$base$path" | head -n 1 | awk '{print $2}')
+            echo "$path -> $status"
+            echo "$status" | grep -qE "^(${code_re})$"
+          done
 
   telegram-notify:
     runs-on: ubuntu-latest

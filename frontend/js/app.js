@@ -209,18 +209,23 @@ const FeedApp = (() => {
       if (text) text.textContent = `Загрузка видео ${percent}%`;
     };
 
-    const placeholder = videoEl.closest(".post")?.querySelector(".post__placeholder");
     const hide = () => {
       loaderEl.classList.add("is-hidden");
-      if (placeholder) placeholder.classList.add("is-hidden");
+    };
+    const show = () => {
+      loaderEl.classList.remove("is-hidden");
     };
     const showError = () => {
       if (text) text.textContent = "Ошибка загрузки видео";
     };
 
+    videoEl.addEventListener("loadstart", show);
+    videoEl.addEventListener("waiting", show);
+    videoEl.addEventListener("stalled", show);
     videoEl.addEventListener("progress", update);
     videoEl.addEventListener("loadedmetadata", update);
-    videoEl.addEventListener("canplay", hide, { once: true });
+    videoEl.addEventListener("canplay", hide);
+    videoEl.addEventListener("playing", hide);
     videoEl.addEventListener("error", showError);
 
     update();
@@ -280,16 +285,12 @@ const FeedApp = (() => {
 
     post.innerHTML = `
       <video class="post__video" playsinline muted preload="auto" loop></video>
-      <div class="post__placeholder">
-        <div class="post__placeholder-title">${escapeHtml(title)}</div>
-        <div class="post__placeholder-sub">Подготовка видео...</div>
-      </div>
 
       <div class="post__ui">
         <div class="post__meta">
           <div class="post__title">${escapeHtml(title)}</div>
           <div class="post__sub">${escapeHtml(src)}</div>
-          <div class="video-loader">
+          <div class="video-loader is-hidden">
             <div class="video-loader__bar" style="width: 0%"></div>
             <div class="video-loader__text">Загрузка видео 0%</div>
           </div>
