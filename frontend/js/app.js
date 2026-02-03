@@ -250,21 +250,29 @@ const FeedApp = (() => {
     let moved = false;
 
     const seekEl = post.querySelector(".seek-indicator");
-    const seekText = seekEl?.querySelector(".seek-indicator__text");
-    const seekIcon = seekEl?.querySelector(".seek-indicator__icon");
+    const seekLeft = seekEl?.querySelector(".seek-petal--left");
+    const seekRight = seekEl?.querySelector(".seek-petal--right");
+    const seekLeftText = seekLeft?.querySelector(".seek-petal__text");
+    const seekRightText = seekRight?.querySelector(".seek-petal__text");
 
     const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 
     const showSeek = (dir, total) => {
       if (!seekEl) return;
       seekEl.classList.add("is-visible");
-      if (seekIcon) seekIcon.textContent = dir < 0 ? "⏪" : "⏩";
-      if (seekText) seekText.textContent = `${dir < 0 ? "−" : "+"}${total.toFixed(1)}s`;
+      seekEl.classList.toggle("is-left", dir < 0);
+      seekEl.classList.toggle("is-right", dir > 0);
+      if (dir < 0 && seekLeftText) {
+        seekLeftText.textContent = `−${total.toFixed(1)}s`;
+      }
+      if (dir > 0 && seekRightText) {
+        seekRightText.textContent = `+${total.toFixed(1)}s`;
+      }
     };
 
     const hideSeek = () => {
       if (!seekEl) return;
-      seekEl.classList.remove("is-visible");
+      seekEl.classList.remove("is-visible", "is-left", "is-right");
     };
 
     const stopSeek = () => {
@@ -396,9 +404,13 @@ const FeedApp = (() => {
     post.innerHTML = `
       <video class="post__video" playsinline muted preload="auto" loop></video>
       <div class="seek-indicator" aria-hidden="true">
-        <div class="seek-indicator__bubble">
-          <div class="seek-indicator__icon">⏩</div>
-          <div class="seek-indicator__text">+0.0s</div>
+        <div class="seek-petal seek-petal--left">
+          <div class="seek-petal__icon">⏪</div>
+          <div class="seek-petal__text">−0.0s</div>
+        </div>
+        <div class="seek-petal seek-petal--right">
+          <div class="seek-petal__icon">⏩</div>
+          <div class="seek-petal__text">+0.0s</div>
         </div>
       </div>
 
@@ -589,7 +601,6 @@ const FeedApp = (() => {
   }
 
   async function boot() {
-    await Auth.wireTopbar();
     currentUser = await Auth.me();
     await loadHeroVideo();
 
