@@ -42,10 +42,15 @@ def _run_ffmpeg(cmd, file_path):
         return False
 
     if result.returncode != 0:
+        stderr_text = result.stderr.decode("utf-8", "ignore")
+        stderr_tail = stderr_text[-2000:] if stderr_text else ""
+        cmd_text = " ".join(str(part) for part in cmd)
         logger.warning(
-            "ffmpeg failed for %s: %s",
+            "ffmpeg failed for %s (code %s). cmd=%s stderr_tail=%s",
             file_path,
-            result.stderr.decode("utf-8", "ignore")[:500],
+            result.returncode,
+            cmd_text,
+            stderr_tail,
         )
         return False
     return True
