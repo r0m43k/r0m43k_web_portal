@@ -265,7 +265,7 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
             "[vlow]",
         ]
         if has_audio:
-            cmd_reencode += ["-map", "0:a:0?"]
+            cmd_reencode += ["-map", "0:a:0?", "-map", "0:a:0?"]
         else:
             cmd_reencode += ["-an"]
         cmd_reencode += [
@@ -307,7 +307,20 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
             str(gop),
         ]
         if has_audio:
-            cmd_reencode += ["-c:a", "aac", "-b:a", audio_bitrate, "-ac", "2"]
+            cmd_reencode += [
+                "-c:a:0",
+                "aac",
+                "-b:a:0",
+                audio_bitrate,
+                "-ac:a:0",
+                "2",
+                "-c:a:1",
+                "aac",
+                "-b:a:1",
+                audio_bitrate,
+                "-ac:a:1",
+                "2",
+            ]
         cmd_reencode += [
             "-color_range",
             "tv",
@@ -332,7 +345,7 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
             "-master_pl_name",
             "index.m3u8",
             "-var_stream_map",
-            "v:0,a:0 v:1,a:0" if has_audio else "v:0 v:1",
+            "v:0,a:0 v:1,a:1" if has_audio else "v:0 v:1",
             str(out_dir / "index_%v.m3u8"),
         ]
         return _run_ffmpeg(cmd_reencode, mp4_path)
