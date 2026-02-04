@@ -32,6 +32,18 @@ class VideoSerializer(serializers.ModelSerializer):
         url = obj.file.url
         return request.build_absolute_uri(url) if request else url
 
+    def get_hls_url(self, obj):
+        if not obj.pk:
+            return None
+        try:
+            manifest = hls_manifest_path("video", obj.pk)
+            if not manifest.exists():
+                return None
+            request = self.context.get("request")
+            return hls_manifest_url(request, "video", obj.pk)
+        except Exception:
+            return None
+
 
 class VideoCreateSerializer(serializers.ModelSerializer):
     title = serializers.CharField(required=False, allow_blank=True)
@@ -73,11 +85,14 @@ class HeroVideoSerializer(serializers.ModelSerializer):
     def get_hls_url(self, obj):
         if not obj.pk:
             return None
-        manifest = hls_manifest_path("hero", obj.pk)
-        if not manifest.exists():
+        try:
+            manifest = hls_manifest_path("hero", obj.pk)
+            if not manifest.exists():
+                return None
+            request = self.context.get("request")
+            return hls_manifest_url(request, "hero", obj.pk)
+        except Exception:
             return None
-        request = self.context.get("request")
-        return hls_manifest_url(request, "hero", obj.pk)
 
 
 class VideoCommentSerializer(serializers.ModelSerializer):
@@ -123,12 +138,3 @@ class AdminVideoSerializer(serializers.ModelSerializer):
             return None
         url = obj.file.url
         return request.build_absolute_uri(url) if request else url
-
-    def get_hls_url(self, obj):
-        if not obj.pk:
-            return None
-        manifest = hls_manifest_path("video", obj.pk)
-        if not manifest.exists():
-            return None
-        request = self.context.get("request")
-        return hls_manifest_url(request, "video", obj.pk)
