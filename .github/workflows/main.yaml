@@ -95,6 +95,8 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          timeout: 120s
+          command_timeout: 60m
           script: |
             set -euo pipefail
 
