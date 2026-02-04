@@ -48,6 +48,49 @@ class HeroVideo(models.Model):
         return self.title or f"Hero video #{self.pk}"
 
 
+class MediaJob(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        DONE = "done", "Done"
+        FAILED = "failed", "Failed"
+
+    class Kind(models.TextChoices):
+        VIDEO = "video", "Video"
+        HERO = "hero", "Hero"
+
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    video = models.ForeignKey(
+        "Video",
+        on_delete=models.CASCADE,
+        related_name="media_jobs",
+        null=True,
+        blank=True,
+    )
+    hero = models.ForeignKey(
+        "HeroVideo",
+        on_delete=models.CASCADE,
+        related_name="media_jobs",
+        null=True,
+        blank=True,
+    )
+    error = models.TextField(blank=True, default="")
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        target = self.video_id or self.hero_id
+        return f"{self.kind}:{target} {self.status}"
+
+
 class VideoLike(models.Model):
     video = models.ForeignKey(
         Video,

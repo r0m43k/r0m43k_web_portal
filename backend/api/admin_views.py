@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 
-from .models import HeroVideo, Video
+from .models import HeroVideo, MediaJob, Video
 from .serializers import AdminVideoSerializer
 
 
@@ -72,6 +72,11 @@ class AdminHeroUploadView(APIView):
             file=file,
             is_active=True,
         )
+        if hero.file:
+            MediaJob.objects.create(
+                kind=MediaJob.Kind.HERO,
+                hero=hero,
+            )
         return Response(
             {"ok": True, "id": hero.id},
             status=status.HTTP_201_CREATED,

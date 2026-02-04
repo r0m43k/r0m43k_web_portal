@@ -1,9 +1,11 @@
 from rest_framework import serializers
 from .models import HeroVideo, Video, VideoComment
+from .utils.media import hls_manifest_path, hls_manifest_url
 
 
 class VideoSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
+    hls_url = serializers.SerializerMethodField()
     likes_count = serializers.IntegerField(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
     liked_by_me = serializers.BooleanField(read_only=True)
@@ -14,6 +16,7 @@ class VideoSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "file_url",
+            "hls_url",
             "status",
             "created_at",
             "published_at",
@@ -45,9 +48,36 @@ class VideoCreateSerializer(serializers.ModelSerializer):
 
 
 class HeroVideoSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    hls_url = serializers.SerializerMethodField()
+
     class Meta:
         model = HeroVideo
-        fields = "__all__"
+        fields = [
+            "id",
+            "title",
+            "file",
+            "file_url",
+            "hls_url",
+            "is_active",
+            "updated_at",
+        ]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if not obj.file:
+            return None
+        url = obj.file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_hls_url(self, obj):
+        if not obj.pk:
+            return None
+        manifest = hls_manifest_path("hero", obj.pk)
+        if not manifest.exists():
+            return None
+        request = self.context.get("request")
+        return hls_manifest_url(request, "hero", obj.pk)
 
 
 class VideoCommentSerializer(serializers.ModelSerializer):
@@ -64,6 +94,7 @@ class VideoCommentSerializer(serializers.ModelSerializer):
 class AdminVideoSerializer(serializers.ModelSerializer):
     owner_username = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
+    hls_url = serializers.SerializerMethodField()
     likes_count = serializers.IntegerField(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
 
@@ -73,6 +104,7 @@ class AdminVideoSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "file_url",
+            "hls_url",
             "status",
             "reject_reason",
             "created_at",
@@ -91,3 +123,13 @@ class AdminVideoSerializer(serializers.ModelSerializer):
             return None
         url = obj.file.url
         return request.build_absolute_uri(url) if request else url
+
+
+    def get_hls_url(self, obj):
+        if not obj.pk:
+            return None
+        manifest = hls_manifest_path("video", obj.pk)
+        if not manifest.exists():
+            return None
+        request = self.context.get("request")
+        return hls_manifest_url(request, "video", obj.pk)

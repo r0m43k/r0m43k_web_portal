@@ -1,5 +1,5 @@
 FROM python:3.12-alpine
-RUN apk add --no-cache build-base postgresql-dev
+RUN apk add --no-cache build-base postgresql-dev ffmpeg
 
 WORKDIR /app
 COPY requirements.txt /app/requirements.txt

@@ -5,7 +5,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Video, VideoComment, VideoLike
+from .models import MediaJob, Video, VideoComment, VideoLike
 from .serializers import (
     VideoCommentSerializer,
     VideoCreateSerializer,
@@ -53,7 +53,12 @@ class VideoListView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def perform_create(self, serializer):
-        serializer.save(owner=self.request.user, status=Video.Status.PENDING)
+        video = serializer.save(owner=self.request.user, status=Video.Status.PENDING)
+        if video.file:
+            MediaJob.objects.create(
+                kind=MediaJob.Kind.VIDEO,
+                video=video,
+            )
 
 
 class VideoCommentListCreateView(generics.ListCreateAPIView):
@@ -65,7 +70,7 @@ class VideoCommentListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == "GET":
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
 
     def perform_create(self, serializer):
         video = get_object_or_404(Video, pk=self.kwargs["video_id"])

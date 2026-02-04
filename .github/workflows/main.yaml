@@ -140,7 +140,7 @@ jobs:
 
             sudo docker compose -f docker-compose.production.yml pull
             sudo docker compose -f docker-compose.production.yml down
-            sudo docker compose -f docker-compose.production.yml up -d --remove-orphans
+            sudo docker compose -f docker-compose.production.yml up -d postgres backend frontend gateway
 
             echo "Waiting for Postgres..."
             ready=0
@@ -161,6 +161,9 @@ jobs:
 
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py faststart_media
+
+            sudo docker compose -f docker-compose.production.yml up -d media-worker
             sudo docker compose -f docker-compose.production.yml restart backend gateway
 
             if [ ! -f "$(sudo docker volume inspect -f '{{.Mountpoint}}' dronehub_certbot_conf)/live/r0m43k.live/fullchain.pem" ]; then

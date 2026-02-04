@@ -20,10 +20,11 @@ const FeedApp = (() => {
   let activeCommentVideoId = null;
   let preloadQueue = [];
   const preloaded = new Set();
-  const PRELOAD_CONCURRENCY = 2;
+  const PRELOAD_CONCURRENCY = 1;
 
   function enqueuePreload(src) {
     if (!src || preloaded.has(src)) return;
+    if (String(src).includes(".m3u8")) return;
     preloaded.add(src);
     preloadQueue.push(src);
     runPreloadQueue();
@@ -56,8 +57,16 @@ const FeedApp = (() => {
       runPreloadQueue();
     };
 
-    v.addEventListener("canplaythrough", cleanup, { once: true });
-    v.addEventListener("error", cleanup, { once: true });
+    const timeout = setTimeout(cleanup, 8000);
+
+    const finish = () => {
+      clearTimeout(timeout);
+      cleanup();
+    };
+
+    v.addEventListener("loadeddata", finish, { once: true });
+    v.addEventListener("canplay", finish, { once: true });
+    v.addEventListener("error", finish, { once: true });
     v.load();
   }
 
@@ -396,6 +405,44 @@ const FeedApp = (() => {
     return /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(clean);
   }
 
+  function canPlayHls(videoEl) {
+    if (!videoEl || !videoEl.canPlayType) return false;
+    const t1 = videoEl.canPlayType("application/vnd.apple.mpegurl");
+    const t2 = videoEl.canPlayType("application/x-mpegURL");
+    return t1 === "probably" || t1 === "maybe" || t2 === "probably" || t2 === "maybe";
+  }
+
+  function attachStreamSource(videoEl, src, hlsUrl) {
+    if (!videoEl) return;
+    if (videoEl.dataset.loaded === "1") return;
+    if (!src && !hlsUrl) return;
+
+    videoEl.dataset.loaded = "1";
+    videoEl.preload = "auto";
+
+    if (hlsUrl && window.Hls && window.Hls.isSupported()) {
+      const hls = new window.Hls({
+        maxBufferLength: 30,
+        backBufferLength: 30,
+      });
+      videoEl.__hls = hls;
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(videoEl);
+      return;
+    }
+
+    if (hlsUrl && canPlayHls(videoEl)) {
+      videoEl.src = hlsUrl;
+      videoEl.load();
+      return;
+    }
+
+    if (src) {
+      videoEl.src = src;
+      videoEl.load();
+    }
+  }
+
   async function loadHeroVideo() {
     if (!heroVideo) return;
 
@@ -411,6 +458,7 @@ const FeedApp = (() => {
 
       const data = await res.json();
       const url = data.file_url || data.file;
+      const hlsUrl = data.hls_url || data.hls;
       if (!url) {
         heroVideo.removeAttribute("src");
         heroVideo.removeAttribute("poster");
@@ -440,11 +488,11 @@ const FeedApp = (() => {
       attachVideoLoader(heroVideo, heroLoader);
 
       const source = heroVideo.querySelector("source");
-      if (source) source.src = url;
-      heroVideo.src = url;
+      if (source) source.removeAttribute("src");
+      heroVideo.removeAttribute("src");
       heroPost?.classList.remove("is-empty");
 
-      heroVideo.load();
+      attachStreamSource(heroVideo, url, hlsUrl);
       heroVideo.play().catch(() => {});
     } catch {}
   }
@@ -460,7 +508,12 @@ const FeedApp = (() => {
       .replaceAll("'", "&#039;");
   }
 
+  function ensureVideoSource(videoEl, src, hlsUrl) {
+    attachStreamSource(videoEl, src, hlsUrl);
+  }
+
   function createPost(v) {
+    const hlsUrl = v.hls_url || v.hls || "";
     const src = v.file_url || v.file || "";
     const title = v.title ?? "Без названия";
     const likes = typeof v.likes_count === "number" ? v.likes_count : 0;
@@ -470,10 +523,11 @@ const FeedApp = (() => {
     const post = document.createElement("section");
     post.className = "post post--compact";
     post.dataset.src = src;
+    post.dataset.hls = hlsUrl;
     post.dataset.id = v.id;
 
     post.innerHTML = `
-      <video class="post__video" playsinline muted preload="auto" loop></video>
+      <video class="post__video" playsinline muted preload="metadata" loop></video>
       <div class="seek-indicator" aria-hidden="true">
         <div class="seek-petal seek-petal--left">
           <div class="seek-petal__icon">⏪</div>
@@ -517,12 +571,8 @@ const FeedApp = (() => {
 
     attachVideoLoader(videoEl, loader);
 
-    if (src) {
-      videoEl.src = src;
-      videoEl.load();
-    }
-
-    if (src) enqueuePreload(src);
+    if (src) videoEl.dataset.src = src;
+    if (hlsUrl) videoEl.dataset.hls = hlsUrl;
 
     attachHoldToPause(videoEl, post);
 
@@ -644,6 +694,10 @@ const FeedApp = (() => {
       // hero и посты всегда loop
       video.loop = true;
 
+      const src = post.dataset.src;
+      const hlsUrl = post.dataset.hls;
+      ensureVideoSource(video, src, hlsUrl);
+
       video.play().catch(() => {});
 
       // preload next
@@ -651,9 +705,11 @@ const FeedApp = (() => {
       if (nextPost) {
         const nextVideo = nextPost.querySelector("video");
         if (nextVideo) {
-          nextVideo.preload = "auto";
-          const src = nextVideo.getAttribute("src");
-          if (src) enqueuePreload(src);
+          const nextSrc = nextPost.dataset.src || nextVideo.dataset.src;
+          const nextHls = nextPost.dataset.hls || nextVideo.dataset.hls;
+          if (nextSrc || nextHls) {
+            enqueuePreload(nextSrc || nextHls);
+          }
         }
       }
     }, { threshold: [0.6, 0.75, 0.9] });

@@ -33,6 +33,17 @@ services:
       --log-level debug
       --capture-output
     restart: unless-stopped
+
+  media-worker:
+    image: ${DOCKER_USERNAME}/r0m43k_web_portal-backend:latest
+    env_file: .env
+    depends_on:
+      - postgres
+    volumes:
+      - media:/app/media
+      - static:/app/staticfiles
+    command: python manage.py process_media_jobs
+    restart: unless-stopped
   frontend:
     image: ${DOCKER_USERNAME}/r0m43k_web_portal-frontend:latest
     restart: unless-stopped
