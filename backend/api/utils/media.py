@@ -51,6 +51,34 @@ def _run_ffmpeg(cmd, file_path):
     return True
 
 
+def _has_audio(path: str) -> bool:
+    if not path:
+        return False
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "a",
+                "-show_entries",
+                "stream=codec_type",
+                "-of",
+                "csv=p=0",
+                str(path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except FileNotFoundError:
+        return True
+    if result.returncode != 0:
+        return False
+    return bool(result.stdout.strip())
+
+
 def hls_dir(kind: str, object_id: int) -> Path:
     return Path(settings.MEDIA_ROOT) / "hls" / str(kind) / str(object_id)
 
@@ -185,6 +213,7 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
     level = os.getenv("HLS_LEVEL") or "4.1"
     gop = int(os.getenv("HLS_GOP") or str(segment_seconds * 30))
     force_reencode = (os.getenv("HLS_FORCE_REENCODE") or "1") == "1"
+    has_audio = _has_audio(mp4_path)
 
     if height_low >= height:
         height_low = 0
@@ -235,8 +264,12 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
             "[vmain]",
             "-map",
             "[vlow]",
-            "-map",
-            "0:a:0?",
+        ]
+        if has_audio:
+            cmd_reencode += ["-map", "0:a:0?"]
+        else:
+            cmd_reencode += ["-an"]
+        cmd_reencode += [
             "-c:v:0",
             "libx264",
             "-preset",
@@ -273,12 +306,10 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
             str(gop),
             "-keyint_min",
             str(gop),
-            "-c:a",
-            "aac",
-            "-b:a",
-            audio_bitrate,
-            "-ac",
-            "2",
+        ]
+        if has_audio:
+            cmd_reencode += ["-c:a", "aac", "-b:a", audio_bitrate, "-ac", "2"]
+        cmd_reencode += [
             "-color_range",
             "tv",
             "-colorspace",
@@ -302,7 +333,7 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
             "-master_pl_name",
             "index.m3u8",
             "-var_stream_map",
-            "v:0,a:0 v:1,a:0",
+            "v:0,a:0 v:1,a:0" if has_audio else "v:0 v:1",
             str(out_dir / "index_%v.m3u8"),
         ]
         return _run_ffmpeg(cmd_reencode, mp4_path)
@@ -358,6 +389,17 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
         str(segment_pattern),
         str(playlist),
     ]
+    if not has_audio:
+        try:
+            idx = cmd_reencode.index("-c:a")
+            del cmd_reencode[idx:idx + 4]
+        except ValueError:
+            pass
+        try:
+            insert_at = cmd_reencode.index("-color_range")
+        except ValueError:
+            insert_at = len(cmd_reencode)
+        cmd_reencode.insert(insert_at, "-an")
     return _run_ffmpeg(cmd_reencode, mp4_path)
 
 
