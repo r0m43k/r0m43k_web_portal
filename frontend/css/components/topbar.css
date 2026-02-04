@@ -15,6 +15,18 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+.topbar__actions > *{
+  width: var(--topbar-btn-width, 180px);
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand__title{ font-weight: 700; letter-spacing: .2px; }

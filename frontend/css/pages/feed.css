@@ -29,13 +29,22 @@
   scroll-behavior: smooth;
 }
 
-.feed-page .topbar{
+.feed-page.is-auth .topbar{
   justify-content: center;
 }
-.feed-page .topbar__actions{
+.feed-page.is-auth .topbar__actions{
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+}
+.feed-page.is-guest .topbar{
+  justify-content: flex-end;
+}
+.feed-page.is-guest .topbar__actions{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 .feed-page .btn,

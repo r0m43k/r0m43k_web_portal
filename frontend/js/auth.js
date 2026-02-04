@@ -85,6 +85,17 @@ const Auth = (() => {
     }
   }
 
+  async function tryAdminBridge() {
+    try {
+      const res = await fetch("/api/auth/admin-bridge/", {
+        credentials: "include",
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   async function wireTopbar() {
     const loginBtn = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
@@ -97,8 +108,16 @@ const Auth = (() => {
     if (adminBtn) adminBtn.hidden = true;
     if (userEl) userEl.hidden = true;
 
-    const user = await me();
+    let user = await me();
+    if (!user) {
+      const bridged = await tryAdminBridge();
+      if (bridged) {
+        user = await me();
+      }
+    }
     if (user) {
+      document.body.classList.add("is-auth");
+      document.body.classList.remove("is-guest");
       loginBtn.hidden = true;
       logoutBtn.hidden = false;
       if (userEl) {
@@ -113,6 +132,8 @@ const Auth = (() => {
         location.reload();
       });
     } else {
+      document.body.classList.add("is-guest");
+      document.body.classList.remove("is-auth");
       loginBtn.hidden = false;
     }
   }
