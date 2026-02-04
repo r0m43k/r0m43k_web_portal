@@ -142,7 +142,15 @@ jobs:
             EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
             EMAIL_USE_TLS=${{ secrets.EMAIL_USE_TLS }}
             DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL }}
+
+            HLS_SEGMENT_SECONDS=2
+            HLS_HEIGHT=720
+            HLS_MAXRATE=3500k
+            HLS_BUFSIZE=7000k
+            HLS_FORCE_REENCODE=1
             EOF
+
+            sudo ln -sfn "$DEPLOY_DIR/.env" /root/.env || true
 
             sudo docker compose -f "$COMPOSE_FILE" pull
             sudo docker compose -f "$COMPOSE_FILE" down

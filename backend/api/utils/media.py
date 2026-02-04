@@ -170,29 +170,38 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
     playlist = out_dir / "index.m3u8"
     segment_pattern = out_dir / "seg_%05d.ts"
 
-    cmd_copy = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(mp4_path),
-        "-c",
-        "copy",
-        "-hls_time",
-        "4",
-        "-hls_playlist_type",
-        "vod",
-        "-hls_segment_filename",
-        str(segment_pattern),
-        str(playlist),
-    ]
-    if _run_ffmpeg(cmd_copy, mp4_path):
-        return True
+    segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "2")
+    height = int(os.getenv("HLS_HEIGHT") or "720")
+    maxrate = os.getenv("HLS_MAXRATE") or "3500k"
+    bufsize = os.getenv("HLS_BUFSIZE") or "7000k"
+    force_reencode = (os.getenv("HLS_FORCE_REENCODE") or "1") == "1"
+
+    if not force_reencode:
+        cmd_copy = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(mp4_path),
+            "-c",
+            "copy",
+            "-hls_time",
+            str(segment_seconds),
+            "-hls_playlist_type",
+            "vod",
+            "-hls_segment_filename",
+            str(segment_pattern),
+            str(playlist),
+        ]
+        if _run_ffmpeg(cmd_copy, mp4_path):
+            return True
 
     cmd_reencode = [
         "ffmpeg",
         "-y",
         "-i",
         str(mp4_path),
+        "-vf",
+        f"scale=-2:{height}",
         "-c:v",
         "libx264",
         "-preset",
@@ -201,12 +210,18 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
         "23",
         "-pix_fmt",
         "yuv420p",
+        "-maxrate",
+        maxrate,
+        "-bufsize",
+        bufsize,
         "-c:a",
         "aac",
         "-b:a",
         "128k",
+        "-force_key_frames",
+        f"expr:gte(t,n_forced*{segment_seconds})",
         "-hls_time",
-        "4",
+        str(segment_seconds),
         "-hls_playlist_type",
         "vod",
         "-hls_flags",

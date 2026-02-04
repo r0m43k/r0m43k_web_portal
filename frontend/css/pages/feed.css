@@ -165,6 +165,9 @@
 .video-loader.is-hidden{
   display: none;
 }
+.feed-page .video-loader{
+  display: none !important;
+}
 
 .seek-indicator{
   position: absolute;

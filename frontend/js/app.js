@@ -412,6 +412,19 @@ const FeedApp = (() => {
     return t1 === "probably" || t1 === "maybe" || t2 === "probably" || t2 === "maybe";
   }
 
+  function ensureLoopPlayback(videoEl) {
+    if (!videoEl) return;
+    if (videoEl.dataset.loopBound === "1") return;
+    videoEl.dataset.loopBound = "1";
+    videoEl.loop = true;
+    videoEl.addEventListener("ended", () => {
+      try {
+        videoEl.currentTime = 0;
+      } catch {}
+      videoEl.play().catch(() => {});
+    });
+  }
+
   function attachStreamSource(videoEl, src, hlsUrl) {
     if (!videoEl) return;
     if (videoEl.dataset.loaded === "1") return;
@@ -419,6 +432,7 @@ const FeedApp = (() => {
 
     videoEl.dataset.loaded = "1";
     videoEl.preload = "auto";
+    ensureLoopPlayback(videoEl);
 
     const fallbackToMp4 = () => {
       if (!src) return;
