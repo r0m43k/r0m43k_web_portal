@@ -240,15 +240,9 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
         if _run_ffmpeg(cmd_copy, mp4_path):
             return True
 
-    scale_main = (
-        f"scale=-2:{height}:flags=lanczos:in_range=auto:out_range=tv,"
-        "format=yuv420p"
-    )
+    scale_main = f"scale=-2:{height}:flags=lanczos,format=yuv420p"
     if multi_variant:
-        scale_low = (
-            f"scale=-2:{height_low}:flags=lanczos:in_range=auto:out_range=tv,"
-            "format=yuv420p"
-        )
+        scale_low = f"scale=-2:{height_low}:flags=lanczos,format=yuv420p"
         filter_complex = (
             f"[0:v]split=2[v0][v1];[v0]{scale_main}[vmain];"
             f"[v1]{scale_low}[vlow]"
