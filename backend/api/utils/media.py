@@ -171,12 +171,28 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
     segment_pattern = out_dir / "seg_%05d.ts"
 
     segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "2")
-    height = int(os.getenv("HLS_HEIGHT") or "720")
-    maxrate = os.getenv("HLS_MAXRATE") or "3500k"
-    bufsize = os.getenv("HLS_BUFSIZE") or "7000k"
+    height = int(os.getenv("HLS_HEIGHT") or "1080")
+    height_low = int(os.getenv("HLS_HEIGHT_LOW") or "720")
+    maxrate = os.getenv("HLS_MAXRATE") or "6000k"
+    bufsize = os.getenv("HLS_BUFSIZE") or "12000k"
+    maxrate_low = os.getenv("HLS_MAXRATE_LOW") or "3000k"
+    bufsize_low = os.getenv("HLS_BUFSIZE_LOW") or "6000k"
+    preset = os.getenv("HLS_PRESET") or "fast"
+    crf = os.getenv("HLS_CRF") or "21"
+    crf_low = os.getenv("HLS_CRF_LOW") or "23"
+    audio_bitrate = os.getenv("HLS_AUDIO_BITRATE") or "160k"
+    profile = os.getenv("HLS_PROFILE") or "high"
+    level = os.getenv("HLS_LEVEL") or "4.1"
+    gop = int(os.getenv("HLS_GOP") or str(segment_seconds * 30))
     force_reencode = (os.getenv("HLS_FORCE_REENCODE") or "1") == "1"
 
-    if not force_reencode:
+    if height_low >= height:
+        height_low = 0
+    if gop < 1:
+        gop = segment_seconds * 30
+    multi_variant = height_low > 0
+
+    if not force_reencode and not multi_variant:
         cmd_copy = [
             "ffmpeg",
             "-y",
@@ -195,29 +211,141 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
         if _run_ffmpeg(cmd_copy, mp4_path):
             return True
 
+    scale_main = (
+        f"scale=-2:{height}:flags=lanczos:in_range=auto:out_range=tv,"
+        "format=yuv420p"
+    )
+    if multi_variant:
+        scale_low = (
+            f"scale=-2:{height_low}:flags=lanczos:in_range=auto:out_range=tv,"
+            "format=yuv420p"
+        )
+        filter_complex = (
+            f"[0:v]split=2[v0][v1];[v0]{scale_main}[vmain];"
+            f"[v1]{scale_low}[vlow]"
+        )
+        cmd_reencode = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(mp4_path),
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[vmain]",
+            "-map",
+            "[vlow]",
+            "-map",
+            "0:a:0?",
+            "-c:v:0",
+            "libx264",
+            "-preset",
+            preset,
+            "-crf",
+            crf,
+            "-profile:v:0",
+            profile,
+            "-level:v:0",
+            level,
+            "-maxrate:v:0",
+            maxrate,
+            "-bufsize:v:0",
+            bufsize,
+            "-g",
+            str(gop),
+            "-keyint_min",
+            str(gop),
+            "-c:v:1",
+            "libx264",
+            "-preset",
+            preset,
+            "-crf",
+            crf_low,
+            "-profile:v:1",
+            profile,
+            "-level:v:1",
+            level,
+            "-maxrate:v:1",
+            maxrate_low,
+            "-bufsize:v:1",
+            bufsize_low,
+            "-g",
+            str(gop),
+            "-keyint_min",
+            str(gop),
+            "-c:a",
+            "aac",
+            "-b:a",
+            audio_bitrate,
+            "-ac",
+            "2",
+            "-color_range",
+            "tv",
+            "-colorspace",
+            "bt709",
+            "-color_primaries",
+            "bt709",
+            "-color_trc",
+            "bt709",
+            "-sc_threshold",
+            "0",
+            "-force_key_frames",
+            f"expr:gte(t,n_forced*{segment_seconds})",
+            "-hls_time",
+            str(segment_seconds),
+            "-hls_playlist_type",
+            "vod",
+            "-hls_flags",
+            "independent_segments",
+            "-hls_segment_filename",
+            str(out_dir / "seg_%v_%05d.ts"),
+            "-master_pl_name",
+            "index.m3u8",
+            "-var_stream_map",
+            "v:0,a:0 v:1,a:0",
+            str(out_dir / "index_%v.m3u8"),
+        ]
+        return _run_ffmpeg(cmd_reencode, mp4_path)
+
     cmd_reencode = [
         "ffmpeg",
         "-y",
         "-i",
         str(mp4_path),
         "-vf",
-        f"scale=-2:{height}",
+        scale_main,
         "-c:v",
         "libx264",
         "-preset",
-        "veryfast",
+        preset,
         "-crf",
-        "23",
-        "-pix_fmt",
-        "yuv420p",
+        crf,
+        "-profile:v",
+        profile,
+        "-level",
+        level,
         "-maxrate",
         maxrate,
         "-bufsize",
         bufsize,
+        "-g",
+        str(gop),
+        "-keyint_min",
+        str(gop),
         "-c:a",
         "aac",
         "-b:a",
-        "128k",
+        audio_bitrate,
+        "-color_range",
+        "tv",
+        "-colorspace",
+        "bt709",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-sc_threshold",
+        "0",
         "-force_key_frames",
         f"expr:gte(t,n_forced*{segment_seconds})",
         "-hls_time",

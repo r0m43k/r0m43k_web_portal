@@ -72,6 +72,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     needs:
       - build_and_push_backend_to_docker_hub
       - build_and_push_frontend_to_docker_hub
@@ -96,7 +97,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           timeout: 120s
-          command_timeout: 60m
+          command_timeout: 180m
           script: |
             set -euo pipefail
 
@@ -146,9 +147,19 @@ jobs:
             DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL }}
 
             HLS_SEGMENT_SECONDS=2
-            HLS_HEIGHT=720
-            HLS_MAXRATE=3500k
-            HLS_BUFSIZE=7000k
+            HLS_HEIGHT=1080
+            HLS_HEIGHT_LOW=720
+            HLS_MAXRATE=6000k
+            HLS_BUFSIZE=12000k
+            HLS_MAXRATE_LOW=3000k
+            HLS_BUFSIZE_LOW=6000k
+            HLS_CRF=21
+            HLS_CRF_LOW=23
+            HLS_PRESET=slow
+            HLS_AUDIO_BITRATE=160k
+            HLS_PROFILE=high
+            HLS_LEVEL=4.1
+            HLS_GOP=60
             HLS_FORCE_REENCODE=1
             EOF
 
