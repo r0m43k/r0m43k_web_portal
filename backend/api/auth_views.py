@@ -234,8 +234,6 @@ class LoginView(APIView):
         return resp
 
 
-
-
 class RefreshView(APIView):
     permission_classes = [AllowAny]
 
