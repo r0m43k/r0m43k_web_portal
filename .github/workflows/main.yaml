@@ -107,8 +107,14 @@ jobs:
             echo "Pruning unused Docker data to free disk space..."
             sudo docker system prune -f || true
 
-            mkdir -p /home/${{ secrets.USERNAME }}/DroneHub
-            cd /home/${{ secrets.USERNAME }}/DroneHub
+            DEPLOY_DIR="/home/${{ secrets.USERNAME }}/DroneHub"
+            COMPOSE_FILE="$DEPLOY_DIR/docker-compose.production.yml"
+
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
+
+            sudo ln -sfn "$DEPLOY_DIR" /root/DroneHub || true
+            sudo ln -sfn "$COMPOSE_FILE" /root/docker-compose.production.yml || true
 
             cat > .env <<'EOF'
             ENV=prod
@@ -138,14 +144,14 @@ jobs:
             DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL }}
             EOF
 
-            sudo docker compose -f docker-compose.production.yml pull
-            sudo docker compose -f docker-compose.production.yml down
-            sudo docker compose -f docker-compose.production.yml up -d postgres backend frontend gateway
+            sudo docker compose -f "$COMPOSE_FILE" pull
+            sudo docker compose -f "$COMPOSE_FILE" down
+            sudo docker compose -f "$COMPOSE_FILE" up -d postgres backend frontend gateway
 
             echo "Waiting for Postgres..."
             ready=0
             for i in {1..30}; do
-              if sudo docker compose -f docker-compose.production.yml exec -T postgres pg_isready -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" >/dev/null 2>&1; then
+              if sudo docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" >/dev/null 2>&1; then
                 echo "Postgres is ready!"
                 ready=1
                 break
@@ -154,32 +160,32 @@ jobs:
             done
             if [ "$ready" -ne 1 ]; then
               echo "Postgres is not ready. Dumping compose status and logs."
-              sudo docker compose -f docker-compose.production.yml ps
-              sudo docker compose -f docker-compose.production.yml logs --tail=200 postgres || true
+              sudo docker compose -f "$COMPOSE_FILE" ps
+              sudo docker compose -f "$COMPOSE_FILE" logs --tail=200 postgres || true
               exit 1
             fi
 
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py faststart_media
+            sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py migrate
+            sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py collectstatic --noinput
+            sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py faststart_media
 
-            sudo docker compose -f docker-compose.production.yml up -d media-worker
-            sudo docker compose -f docker-compose.production.yml restart backend gateway
+            sudo docker compose -f "$COMPOSE_FILE" up -d media-worker
+            sudo docker compose -f "$COMPOSE_FILE" restart backend gateway
 
             if [ ! -f "$(sudo docker volume inspect -f '{{.Mountpoint}}' dronehub_certbot_conf)/live/r0m43k.live/fullchain.pem" ]; then
-              sudo docker compose -f docker-compose.production.yml --profile certbot run --rm certbot \
+              sudo docker compose -f "$COMPOSE_FILE" --profile certbot run --rm certbot \
                 certonly --webroot --webroot-path=/var/www/certbot \
                 -d r0m43k.live -d www.r0m43k.live \
                 --email ${{ secrets.CERTBOT_EMAIL }} --agree-tos --no-eff-email --non-interactive
 
-              sudo docker compose -f docker-compose.production.yml restart gateway
+              sudo docker compose -f "$COMPOSE_FILE" restart gateway
             else
-              sudo docker compose -f docker-compose.production.yml restart gateway
+              sudo docker compose -f "$COMPOSE_FILE" restart gateway
             fi
 
             ADMIN_USERNAME="${{ secrets.ADMIN_USERNAME }}"
             ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}"
-            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py shell -c "from django.contrib.auth.models import User; u, _ = User.objects.get_or_create(username='$ADMIN_USERNAME'); u.is_superuser=True; u.is_staff=True; u.set_password('$ADMIN_PASSWORD'); u.save()"
+            sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py shell -c "from django.contrib.auth.models import User; u, _ = User.objects.get_or_create(username='$ADMIN_USERNAME'); u.is_superuser=True; u.is_staff=True; u.set_password('$ADMIN_PASSWORD'); u.save()"
 
   post_deploy_tests:
     runs-on: ubuntu-latest

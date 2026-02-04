@@ -420,12 +420,29 @@ const FeedApp = (() => {
     videoEl.dataset.loaded = "1";
     videoEl.preload = "auto";
 
+    const fallbackToMp4 = () => {
+      if (!src) return;
+      if (videoEl.dataset.hlsFallback === "1") return;
+      videoEl.dataset.hlsFallback = "1";
+      if (videoEl.__hls) {
+        try { videoEl.__hls.destroy(); } catch {}
+        delete videoEl.__hls;
+      }
+      videoEl.removeAttribute("src");
+      videoEl.src = src;
+      videoEl.load();
+      videoEl.play().catch(() => {});
+    };
+
     if (hlsUrl && window.Hls && window.Hls.isSupported()) {
       const hls = new window.Hls({
         maxBufferLength: 30,
         backBufferLength: 30,
       });
       videoEl.__hls = hls;
+      hls.on(window.Hls.Events.ERROR, (_evt, data) => {
+        if (data?.fatal) fallbackToMp4();
+      });
       hls.loadSource(hlsUrl);
       hls.attachMedia(videoEl);
       return;
@@ -433,6 +450,11 @@ const FeedApp = (() => {
 
     if (hlsUrl && canPlayHls(videoEl)) {
       videoEl.src = hlsUrl;
+      videoEl.addEventListener(
+        "error",
+        () => fallbackToMp4(),
+        { once: true }
+      );
       videoEl.load();
       return;
     }
