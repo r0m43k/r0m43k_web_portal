@@ -18,6 +18,7 @@
   flex-wrap: wrap;
 }
 .topbar__actions > *{
+  flex: 0 0 var(--topbar-btn-width, 180px);
   width: var(--topbar-btn-width, 180px);
   height: 36px;
   display: inline-flex;

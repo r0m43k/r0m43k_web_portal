@@ -206,6 +206,7 @@ const FeedApp = (() => {
     const text = loaderEl.querySelector(".video-loader__text");
     const post = videoEl.closest(".post");
     let lastPercent = 0;
+    let settleTimer = null;
 
     const getDuration = () => {
       const d = videoEl.duration;
@@ -235,6 +236,11 @@ const FeedApp = (() => {
       if (bar) bar.style.width = percent + "%";
       if (text) text.textContent = `Загрузка видео ${percent}%`;
       if (percent >= 100) hide();
+
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        settleToHundred();
+      }, 1200);
     };
 
     const settleToHundred = () => {
