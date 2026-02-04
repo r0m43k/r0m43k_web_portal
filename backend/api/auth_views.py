@@ -12,7 +12,6 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -235,49 +234,6 @@ class LoginView(APIView):
         return resp
 
 
-class AdminBridgeView(APIView):
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        user = request.user
-        if not user.is_authenticated or not (
-            user.is_staff or user.is_superuser
-        ):
-            return Response(
-                {"detail": "not admin"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        refresh = RefreshToken.for_user(user)
-        access = refresh.access_token
-
-        access_ttl = int(
-            settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()
-        )
-        refresh_ttl = int(
-            settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
-        )
-
-        resp = Response({"ok": True})
-        _set_cookie(
-            resp,
-            COOKIE_ACCESS,
-            str(access),
-            max_age=access_ttl,
-            httponly=True,
-            path="/",
-        )
-        _set_cookie(
-            resp,
-            COOKIE_REFRESH,
-            str(refresh),
-            max_age=refresh_ttl,
-            httponly=True,
-            path="/api/auth/",
-        )
-        get_token(request)
-        return resp
 
 
 class RefreshView(APIView):

@@ -79,21 +79,6 @@ const Auth = (() => {
   async function logout() {
     try {
       const res = await json("/api/auth/logout/", { method: "POST" });
-      localStorage.removeItem(ADMIN_BRIDGE_KEY);
-      return res.ok;
-    } catch {
-      localStorage.removeItem(ADMIN_BRIDGE_KEY);
-      return false;
-    }
-  }
-
-  const ADMIN_BRIDGE_KEY = "adminBridge";
-
-  async function tryAdminBridge() {
-    try {
-      const res = await fetch("/api/auth/admin-bridge/", {
-        credentials: "include",
-      });
       return res.ok;
     } catch {
       return false;
@@ -112,25 +97,7 @@ const Auth = (() => {
     if (adminBtn) adminBtn.hidden = true;
     if (userEl) userEl.hidden = true;
 
-    const hasBridge = localStorage.getItem(ADMIN_BRIDGE_KEY) === "1";
-    if (hasBridge) {
-      const ok = await tryAdminBridge();
-      if (!ok) {
-        await logout();
-        localStorage.removeItem(ADMIN_BRIDGE_KEY);
-        location.reload();
-        return;
-      }
-    }
-
-    let user = await me();
-    if (!user) {
-      const bridged = await tryAdminBridge();
-      if (bridged) {
-        localStorage.setItem(ADMIN_BRIDGE_KEY, "1");
-        user = await me();
-      }
-    }
+    const user = await me();
     if (user) {
       document.body.classList.add("is-auth");
       document.body.classList.remove("is-guest");

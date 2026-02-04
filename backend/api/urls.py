@@ -1,7 +1,6 @@
 from django.urls import path
 
 from .auth_views import (
-    AdminBridgeView,
     CsrfView,
     LoginView,
     LogoutView,
@@ -35,7 +34,6 @@ urlpatterns = [
     ),
     path("auth/refresh/", RefreshView.as_view()),
     path("auth/logout/", LogoutView.as_view()),
-    path("auth/admin-bridge/", AdminBridgeView.as_view()),
     path("auth/me/", me),
     path("videos/", VideoListView.as_view()),
     path(
