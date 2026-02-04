@@ -45,7 +45,10 @@
       const password = fd.get("password") || "";
 
       const res = await Auth.login(login, password);
-      if (res.ok) location.href = "/";
+      if (res.ok) {
+        localStorage.removeItem("adminBridge");
+        location.href = "/";
+      }
       else err.textContent = res.detail || "Неверный логин/пароль.";
     });
 

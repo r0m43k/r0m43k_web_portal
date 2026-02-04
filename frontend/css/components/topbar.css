@@ -2,19 +2,21 @@
   position: fixed;
   top: 0;
   left: 0; right: 0;
-  padding: calc(env(safe-area-inset-top) + 10px) 12px 10px;
+  padding: calc(env(safe-area-inset-top) + 8px) 6px 8px;
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap: 12px;
+  gap: 6px;
   z-index: 20;
   pointer-events: none;
+  --topbar-btn-width: 120px;
 }
 .topbar *{ pointer-events: auto; }
 .topbar__actions{
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  row-gap: 6px;
   flex-wrap: wrap;
 }
 .topbar__actions > *{

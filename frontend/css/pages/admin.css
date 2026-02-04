@@ -7,6 +7,7 @@
 }
 .admin-page .topbar{
   justify-content: space-between;
+  --topbar-btn-width: 120px;
 }
 .admin-page .topbar__actions{
   justify-content: flex-end;
