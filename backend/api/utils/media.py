@@ -218,7 +218,11 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
     return _run_ffmpeg(cmd_reencode, mp4_path)
 
 
-def prepare_video_for_streaming(file_field, model=None, kind: str = None) -> bool:
+def prepare_video_for_streaming(
+    file_field,
+    model=None,
+    kind: str = None,
+) -> bool:
     if not file_field:
         return False
     try:

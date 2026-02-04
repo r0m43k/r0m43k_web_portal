@@ -81,4 +81,6 @@ class Command(BaseCommand):
         job.status = MediaJob.Status.DONE if ok else MediaJob.Status.FAILED
         job.finished_at = timezone.now()
         job.error = "" if ok else (err or "processing failed")
-        job.save(update_fields=["status", "finished_at", "error", "updated_at"])
+        job.save(
+            update_fields=["status", "finished_at", "error", "updated_at"]
+        )

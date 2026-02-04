@@ -124,7 +124,6 @@ class AdminVideoSerializer(serializers.ModelSerializer):
         url = obj.file.url
         return request.build_absolute_uri(url) if request else url
 
-
     def get_hls_url(self, obj):
         if not obj.pk:
             return None

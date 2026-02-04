@@ -53,7 +53,10 @@ class VideoListView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def perform_create(self, serializer):
-        video = serializer.save(owner=self.request.user, status=Video.Status.PENDING)
+        video = serializer.save(
+            owner=self.request.user,
+            status=Video.Status.PENDING,
+        )
         if video.file:
             MediaJob.objects.create(
                 kind=MediaJob.Kind.VIDEO,
