@@ -188,7 +188,6 @@ jobs:
 
             sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py migrate
             sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py collectstatic --noinput
-            sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py faststart_media
 
             sudo docker compose -f "$COMPOSE_FILE" up -d media-worker
             sudo docker compose -f "$COMPOSE_FILE" restart backend gateway
