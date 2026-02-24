@@ -1,6 +1,23 @@
+import uuid
+from pathlib import Path
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+
+def _build_raw_upload_path(prefix: str, filename: str) -> str:
+    ext = Path(filename).suffix.lower() or ".mp4"
+    day = timezone.now().strftime("%Y/%m/%d")
+    return f"raw/{prefix}/{day}/{uuid.uuid4().hex}{ext}"
+
+
+def raw_video_upload_to(_instance, filename: str) -> str:
+    return _build_raw_upload_path("videos", filename)
+
+
+def raw_hero_upload_to(_instance, filename: str) -> str:
+    return _build_raw_upload_path("hero", filename)
 
 
 class Video(models.Model):
@@ -15,7 +32,7 @@ class Video(models.Model):
         related_name="videos",
     )
     title = models.CharField(max_length=200)
-    file = models.FileField(upload_to="videos/%Y/%m/%d/")
+    file = models.FileField(upload_to=raw_video_upload_to)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )
@@ -36,7 +53,7 @@ class Video(models.Model):
 
 class HeroVideo(models.Model):
     title = models.CharField(max_length=200, blank=True)
-    file = models.FileField(upload_to="hero/")
+    file = models.FileField(upload_to=raw_hero_upload_to)
     is_active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -48,12 +65,57 @@ class HeroVideo(models.Model):
         return self.title or f"Hero video #{self.pk}"
 
 
+class UploadSession(models.Model):
+    class Status(models.TextChoices):
+        CREATED = "created", "Created"
+        UPLOADING = "uploading", "Uploading"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+        CANCELED = "canceled", "Canceled"
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="upload_sessions",
+    )
+    video = models.ForeignKey(
+        "Video",
+        on_delete=models.SET_NULL,
+        related_name="upload_sessions",
+        null=True,
+        blank=True,
+    )
+    filename = models.CharField(max_length=255, blank=True, default="")
+    total_bytes = models.PositiveBigIntegerField(default=0)
+    received_bytes = models.PositiveBigIntegerField(default=0)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CREATED,
+    )
+    error = models.TextField(blank=True, default="")
+    finished_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def progress_percent(self) -> int:
+        if self.total_bytes <= 0:
+            return 0
+        ratio = (self.received_bytes / self.total_bytes) * 100
+        return max(0, min(100, int(ratio)))
+
+
 class MediaJob(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         PROCESSING = "processing", "Processing"
         DONE = "done", "Done"
         FAILED = "failed", "Failed"
+        CANCELED = "canceled", "Canceled"
 
     class Kind(models.TextChoices):
         VIDEO = "video", "Video"
@@ -62,6 +124,17 @@ class MediaJob(models.Model):
     kind = models.CharField(max_length=20, choices=Kind.choices)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    stage = models.CharField(max_length=64, default="queued")
+    progress = models.PositiveSmallIntegerField(default=0)
+    cancel_requested = models.BooleanField(default=False)
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    upload = models.ForeignKey(
+        "UploadSession",
+        on_delete=models.SET_NULL,
+        related_name="jobs",
+        null=True,
+        blank=True,
     )
     video = models.ForeignKey(
         "Video",
@@ -88,7 +161,10 @@ class MediaJob(models.Model):
 
     def __str__(self):
         target = self.video_id or self.hero_id
-        return f"{self.kind}:{target} {self.status}"
+        return (
+            f"{self.kind}:{target} {self.status}"
+            f" ({self.progress}% {self.stage})"
+        )
 
 
 class VideoLike(models.Model):

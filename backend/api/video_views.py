@@ -1,11 +1,12 @@
 from django.db.models import BooleanField, Count, Exists, OuterRef, Value
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import MediaJob, Video, VideoComment, VideoLike
+from .models import MediaJob, UploadSession, Video, VideoComment, VideoLike
 from .serializers import (
     VideoCommentSerializer,
     VideoCreateSerializer,
@@ -53,14 +54,53 @@ class VideoListView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def perform_create(self, serializer):
-        video = serializer.save(
-            owner=self.request.user,
-            status=Video.Status.PENDING,
+        uploaded_file = serializer.validated_data.get("file")
+        upload = UploadSession.objects.create(
+            created_by=self.request.user,
+            filename=getattr(uploaded_file, "name", ""),
+            total_bytes=getattr(uploaded_file, "size", 0) or 0,
+            received_bytes=0,
+            status=UploadSession.Status.UPLOADING,
         )
+        try:
+            video = serializer.save(
+                owner=self.request.user,
+                status=Video.Status.PENDING,
+            )
+        except Exception as exc:
+            upload.status = UploadSession.Status.FAILED
+            upload.error = str(exc)
+            upload.finished_at = timezone.now()
+            upload.save(
+                update_fields=[
+                    "status",
+                    "error",
+                    "finished_at",
+                    "updated_at",
+                ]
+            )
+            raise
         if video.file:
+            upload.video = video
+            upload.received_bytes = upload.total_bytes
+            upload.status = UploadSession.Status.COMPLETED
+            upload.finished_at = timezone.now()
+            upload.save(
+                update_fields=[
+                    "video",
+                    "received_bytes",
+                    "status",
+                    "finished_at",
+                    "updated_at",
+                ]
+            )
             MediaJob.objects.create(
                 kind=MediaJob.Kind.VIDEO,
                 video=video,
+                upload=upload,
+                status=MediaJob.Status.PENDING,
+                stage="queued",
+                progress=0,
             )
 
 

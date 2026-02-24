@@ -18,57 +18,6 @@ const FeedApp = (() => {
   let postsCount = 0;
   let currentUser = null;
   let activeCommentVideoId = null;
-  let preloadQueue = [];
-  const preloaded = new Set();
-  const PRELOAD_CONCURRENCY = 1;
-
-  function enqueuePreload(src) {
-    if (!src || preloaded.has(src)) return;
-    if (String(src).includes(".m3u8")) return;
-    preloaded.add(src);
-    preloadQueue.push(src);
-    runPreloadQueue();
-  }
-
-  function runPreloadQueue() {
-    if (!preloadQueue.length) return;
-    const inFlight = document.querySelectorAll(
-      "video[data-preloading='1']"
-    ).length;
-    if (inFlight >= PRELOAD_CONCURRENCY) return;
-
-    const src = preloadQueue.shift();
-    if (!src) return;
-
-    const v = document.createElement("video");
-    v.muted = true;
-    v.preload = "auto";
-    v.src = src;
-    v.setAttribute("data-preloading", "1");
-    v.style.position = "absolute";
-    v.style.width = "1px";
-    v.style.height = "1px";
-    v.style.opacity = "0";
-    document.body.appendChild(v);
-
-    const cleanup = () => {
-      v.removeAttribute("data-preloading");
-      v.remove();
-      runPreloadQueue();
-    };
-
-    const timeout = setTimeout(cleanup, 8000);
-
-    const finish = () => {
-      clearTimeout(timeout);
-      cleanup();
-    };
-
-    v.addEventListener("loadeddata", finish, { once: true });
-    v.addEventListener("canplay", finish, { once: true });
-    v.addEventListener("error", finish, { once: true });
-    v.load();
-  }
 
   function formatTime(iso) {
     try {
@@ -431,7 +380,7 @@ const FeedApp = (() => {
     if (!src && !hlsUrl) return;
 
     videoEl.dataset.loaded = "1";
-    videoEl.preload = "auto";
+    videoEl.preload = "metadata";
     ensureLoopPlayback(videoEl);
 
     const fallbackToMp4 = () => {
@@ -518,7 +467,7 @@ const FeedApp = (() => {
       heroVideo.loop = true;
       heroVideo.muted = true;
       heroVideo.autoplay = true;
-      heroVideo.preload = "auto";
+      heroVideo.preload = "metadata";
       heroVideo.setAttribute("playsinline", "");
 
       attachVideoLoader(heroVideo, heroLoader);
@@ -736,18 +685,6 @@ const FeedApp = (() => {
 
       video.play().catch(() => {});
 
-      // preload next
-      const nextPost = post.nextElementSibling;
-      if (nextPost) {
-        const nextVideo = nextPost.querySelector("video");
-        if (nextVideo) {
-          const nextSrc = nextPost.dataset.src || nextVideo.dataset.src;
-          const nextHls = nextPost.dataset.hls || nextVideo.dataset.hls;
-          if (nextSrc || nextHls) {
-            enqueuePreload(nextSrc || nextHls);
-          }
-        }
-      }
     }, { threshold: [0.6, 0.75, 0.9] });
 
     // наблюдаем hero сразу
@@ -770,7 +707,6 @@ const FeedApp = (() => {
     const io = new IntersectionObserver(async (entries) => {
       if (!entries.some(e => e.isIntersecting)) return;
       await loadNextPage();
-      if (!done && postsCount < 4) await loadNextPage();
     }, { rootMargin: "1500px 0px" });
 
     io.observe(sentinel);
@@ -794,7 +730,6 @@ const FeedApp = (() => {
     // hero остаётся первым экраном, а посты просто появятся ниже.
     try {
       await loadNextPage();
-      if (!done && postsCount < 4) await loadNextPage();
     } catch {}
 
     // Кнопка "смотреть" = проскроллить к первому посту

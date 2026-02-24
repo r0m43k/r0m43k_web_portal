@@ -3,62 +3,76 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Админка</title>
-  <link rel="stylesheet" href="/css/main.css?v=20260204" />
+  <title>Video Admin</title>
+  <link rel="stylesheet" href="/css/main.css?v=20260224-1" />
 </head>
 <body class="admin-page">
   <header class="topbar">
     <div class="brand">
       <div class="brand__title">r0m43k Admin</div>
-      <div class="brand__subtitle">Модерация видео</div>
+      <div class="brand__subtitle">Video Upload and Processing</div>
     </div>
     <div class="topbar__actions">
       <span class="admin__user btn" id="adminUser" hidden></span>
-      <a class="btn btn--ghost" href="/" id="homeBtn">На сайт</a>
-      <button class="btn btn--primary" id="logoutBtn" hidden>Выйти</button>
+      <a class="btn btn--ghost" href="/">Back to site</a>
+      <button class="btn btn--primary" id="logoutBtn" hidden>Logout</button>
     </div>
   </header>
 
   <main class="admin">
-    <section class="admin__panel" id="heroPanel">
-      <h2 class="admin__title">Главный экран</h2>
-      <div class="admin__helper">Загрузите видео или изображение для первого экрана.</div>
-      <form id="heroForm" class="admin__upload" enctype="multipart/form-data">
-        <input class="admin__input" name="title" placeholder="Название (необязательно)" />
-        <input class="admin__file" type="file" name="file" accept="video/*,image/*" required />
-        <button class="btn btn--primary" type="submit">Обновить главный экран</button>
-      </form>
-      <div class="hero-preview" id="heroPreview"></div>
-      <div class="upload-progress" id="heroUploadProgress" style="display:none;">
-        <div class="upload-progress__bar">
-          <span id="heroUploadBar"></span>
-        </div>
-        <div class="upload-progress__text" id="heroUploadText">Загрузка 0%</div>
-      </div>
-    </section>
+    <section class="admin__panel admin__panel--single">
+      <h1 class="admin__title">Upload Video</h1>
+      <p class="admin__helper">
+        Upload writes file to <code>/media/raw/</code>, then job builds HLS in
+        <code>/media/hls/</code>.
+      </p>
 
-    <section class="admin__panel">
-      <h2 class="admin__title">Загрузка видео</h2>
-      <form id="uploadForm" class="admin__upload" enctype="multipart/form-data">
-        <input class="admin__input" name="title" placeholder="Название" />
+      <form id="videoUploadForm" class="admin__upload" enctype="multipart/form-data">
+        <input
+          class="admin__input"
+          name="title"
+          placeholder="Title"
+          maxlength="200"
+          autocomplete="off"
+        />
         <input class="admin__file" type="file" name="file" accept="video/*" required />
-        <button class="btn btn--primary" type="submit">Загрузить</button>
-      </form>
-      <div class="upload-progress" id="adminUploadProgress" style="display:none;">
-        <div class="upload-progress__bar">
-          <span id="adminUploadBar"></span>
+        <div class="admin__actions">
+          <button class="btn btn--primary" id="uploadBtn" type="submit">Upload</button>
+          <button class="btn btn--ghost" id="cancelUploadBtn" type="button" hidden>Cancel Upload</button>
+          <button class="btn btn--ghost" id="cancelJobBtn" type="button" hidden>Cancel Processing</button>
+          <button class="btn btn--primary" id="retryJobBtn" type="button" hidden>Retry Processing</button>
         </div>
-        <div class="upload-progress__text" id="adminUploadText">Загрузка 0%</div>
+      </form>
+
+      <div class="upload-progress">
+        <div class="upload-progress__label">Upload progress</div>
+        <div class="upload-progress__bar">
+          <span id="uploadBar"></span>
+        </div>
+        <div class="upload-progress__text" id="uploadText">Idle</div>
+      </div>
+
+      <div class="upload-progress">
+        <div class="upload-progress__label">Transcode progress</div>
+        <div class="upload-progress__bar">
+          <span id="jobBar"></span>
+        </div>
+        <div class="upload-progress__text" id="jobText">Idle</div>
+      </div>
+
+      <div class="admin__result" id="resultBox" hidden>
+        <div class="admin__result-row"><strong>Raw file:</strong> <a id="rawUrl" href="#" target="_blank" rel="noopener">open</a></div>
+        <div class="admin__result-row"><strong>HLS playlist:</strong> <a id="hlsUrl" href="#" target="_blank" rel="noopener">open</a></div>
       </div>
     </section>
 
     <section class="admin__panel">
-      <h2 class="admin__title">Видео</h2>
-      <div class="admin__list" id="adminVideoList"></div>
+      <h2 class="admin__title">Recent Videos</h2>
+      <div class="admin__list admin__list--compact" id="recentList"></div>
     </section>
   </main>
 
-  <script src="/js/auth.js?v=20260204"></script>
-  <script src="/js/admin.js?v=20260204-2"></script>
+  <script src="/js/auth.js?v=20260224-1"></script>
+  <script src="/js/admin.js?v=20260224-1"></script>
 </body>
 </html>

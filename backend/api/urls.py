@@ -10,10 +10,11 @@ from .auth_views import (
 )
 from .admin_views import (
     AdminHeroUploadView,
-    AdminVideoApproveView,
-    AdminVideoDeleteView,
-    AdminVideoListView,
-    AdminVideoRejectView,
+    AdminJobCancelView,
+    AdminJobRetryView,
+    AdminJobStatusView,
+    AdminUploadStatusView,
+    AdminVideoListCreateView,
 )
 from .video_views import (
     VideoCommentListCreateView,
@@ -42,18 +43,10 @@ urlpatterns = [
     ),
     path("videos/<int:video_id>/like/", VideoLikeToggleView.as_view()),
     path("hero/", HeroVideoView.as_view()),
-    path("admin/videos/", AdminVideoListView.as_view()),
+    path("admin/videos", AdminVideoListCreateView.as_view()),
+    path("admin/uploads/<int:upload_id>", AdminUploadStatusView.as_view()),
+    path("admin/jobs/<int:job_id>", AdminJobStatusView.as_view()),
+    path("admin/jobs/<int:job_id>/retry", AdminJobRetryView.as_view()),
+    path("admin/jobs/<int:job_id>/cancel", AdminJobCancelView.as_view()),
     path("admin/hero/", AdminHeroUploadView.as_view()),
-    path(
-        "admin/videos/<int:video_id>/publish/",
-        AdminVideoApproveView.as_view(),
-    ),
-    path(
-        "admin/videos/<int:video_id>/hide/",
-        AdminVideoRejectView.as_view(),
-    ),
-    path(
-        "admin/videos/<int:video_id>/delete/",
-        AdminVideoDeleteView.as_view(),
-    ),
 ]

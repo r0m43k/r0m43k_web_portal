@@ -1,6 +1,13 @@
 from rest_framework import serializers
-from .models import HeroVideo, Video, VideoComment
+
+from .models import HeroVideo, MediaJob, UploadSession, Video, VideoComment
 from .utils.media import hls_manifest_path, hls_manifest_url
+
+
+def _abs_url(request, value):
+    if not value:
+        return None
+    return request.build_absolute_uri(value) if request else value
 
 
 class VideoSerializer(serializers.ModelSerializer):
@@ -26,23 +33,18 @@ class VideoSerializer(serializers.ModelSerializer):
         ]
 
     def get_file_url(self, obj):
-        request = self.context.get("request")
         if not obj.file:
             return None
-        url = obj.file.url
-        return request.build_absolute_uri(url) if request else url
+        return _abs_url(self.context.get("request"), obj.file.url)
 
     def get_hls_url(self, obj):
         if not obj.pk:
             return None
-        try:
-            manifest = hls_manifest_path("video", obj.pk)
-            if not manifest.exists():
-                return None
-            request = self.context.get("request")
-            return hls_manifest_url(request, "video", obj.pk)
-        except Exception:
+        manifest = hls_manifest_path("video", obj.pk)
+        if not manifest.exists():
             return None
+        request = self.context.get("request")
+        return hls_manifest_url(request, "video", obj.pk)
 
 
 class VideoCreateSerializer(serializers.ModelSerializer):
@@ -55,7 +57,7 @@ class VideoCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         title = (attrs.get("title") or "").strip()
         if not title:
-            attrs["title"] = "Без названия"
+            attrs["title"] = "Untitled video"
         return attrs
 
 
@@ -76,23 +78,18 @@ class HeroVideoSerializer(serializers.ModelSerializer):
         ]
 
     def get_file_url(self, obj):
-        request = self.context.get("request")
         if not obj.file:
             return None
-        url = obj.file.url
-        return request.build_absolute_uri(url) if request else url
+        return _abs_url(self.context.get("request"), obj.file.url)
 
     def get_hls_url(self, obj):
         if not obj.pk:
             return None
-        try:
-            manifest = hls_manifest_path("hero", obj.pk)
-            if not manifest.exists():
-                return None
-            request = self.context.get("request")
-            return hls_manifest_url(request, "hero", obj.pk)
-        except Exception:
+        manifest = hls_manifest_path("hero", obj.pk)
+        if not manifest.exists():
             return None
+        request = self.context.get("request")
+        return hls_manifest_url(request, "hero", obj.pk)
 
 
 class VideoCommentSerializer(serializers.ModelSerializer):
@@ -133,8 +130,85 @@ class AdminVideoSerializer(serializers.ModelSerializer):
         return obj.owner.first_name or obj.owner.username
 
     def get_file_url(self, obj):
-        request = self.context.get("request")
         if not obj.file:
             return None
-        url = obj.file.url
-        return request.build_absolute_uri(url) if request else url
+        return _abs_url(self.context.get("request"), obj.file.url)
+
+    def get_hls_url(self, obj):
+        if not obj.pk:
+            return None
+        manifest = hls_manifest_path("video", obj.pk)
+        if not manifest.exists():
+            return None
+        request = self.context.get("request")
+        return hls_manifest_url(request, "video", obj.pk)
+
+
+class AdminUploadSessionSerializer(serializers.ModelSerializer):
+    progress = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UploadSession
+        fields = [
+            "id",
+            "status",
+            "filename",
+            "total_bytes",
+            "received_bytes",
+            "progress",
+            "error",
+            "video_id",
+            "created_at",
+            "updated_at",
+            "finished_at",
+        ]
+
+    def get_progress(self, obj):
+        return obj.progress_percent
+
+
+class AdminMediaJobSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    hls_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MediaJob
+        fields = [
+            "id",
+            "kind",
+            "status",
+            "stage",
+            "progress",
+            "cancel_requested",
+            "attempt_count",
+            "error",
+            "video_id",
+            "hero_id",
+            "upload_id",
+            "created_at",
+            "updated_at",
+            "started_at",
+            "finished_at",
+            "file_url",
+            "hls_url",
+        ]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if obj.video and obj.video.file:
+            return _abs_url(request, obj.video.file.url)
+        if obj.hero and obj.hero.file:
+            return _abs_url(request, obj.hero.file.url)
+        return None
+
+    def get_hls_url(self, obj):
+        request = self.context.get("request")
+        if obj.video_id:
+            manifest = hls_manifest_path("video", obj.video_id)
+            if manifest.exists():
+                return hls_manifest_url(request, "video", obj.video_id)
+        if obj.hero_id:
+            manifest = hls_manifest_path("hero", obj.hero_id)
+            if manifest.exists():
+                return hls_manifest_url(request, "hero", obj.hero_id)
+        return None

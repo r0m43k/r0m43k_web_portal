@@ -1,14 +1,18 @@
 import logging
 import os
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
-import subprocess
 
 from django.conf import settings
 
 
 logger = logging.getLogger(__name__)
+
+
+class MediaProcessingCancelled(Exception):
+    pass
 
 
 def _is_mp4(path: str) -> bool:
@@ -27,6 +31,20 @@ def _is_video_file(path: str) -> bool:
         "flv",
         "wmv",
     }
+
+
+def _report(progress_callback, percent: int, stage: str):
+    if not progress_callback:
+        return
+    try:
+        progress_callback(int(percent), stage)
+    except Exception:
+        logger.debug("progress callback failed", exc_info=True)
+
+
+def _ensure_not_canceled(should_abort):
+    if should_abort and should_abort():
+        raise MediaProcessingCancelled("cancel requested")
 
 
 def _run_ffmpeg(cmd, file_path):
@@ -99,7 +117,7 @@ def hls_manifest_url(request, kind: str, object_id: int) -> str:
     return request.build_absolute_uri(url) if request else url
 
 
-def faststart_inplace(path: str) -> bool:
+def faststart_inplace(path: str, should_abort=None) -> bool:
     if not path:
         return False
     file_path = Path(path)
@@ -108,6 +126,7 @@ def faststart_inplace(path: str) -> bool:
     if not _is_mp4(file_path):
         return False
 
+    _ensure_not_canceled(should_abort)
     tmp_fd, tmp_path = tempfile.mkstemp(
         suffix=".mp4",
         dir=str(file_path.parent),
@@ -126,13 +145,15 @@ def faststart_inplace(path: str) -> bool:
         str(tmp_path),
     ]
 
-    if not _run_ffmpeg(cmd, file_path):
+    ok = _run_ffmpeg(cmd, file_path)
+    if not ok:
         try:
             os.unlink(tmp_path)
         except OSError:
             pass
         return False
 
+    _ensure_not_canceled(should_abort)
     try:
         os.replace(tmp_path, file_path)
         return True
@@ -145,13 +166,14 @@ def faststart_inplace(path: str) -> bool:
         return False
 
 
-def _transcode_to_mp4(src_path: str, dst_path: str) -> bool:
+def _transcode_to_mp4(src_path: str, dst_path: str, should_abort=None) -> bool:
     if not src_path or not dst_path:
         return False
     src = Path(src_path)
     if not src.exists():
         return False
 
+    _ensure_not_canceled(should_abort)
     cmd_copy = [
         "ffmpeg",
         "-y",
@@ -164,6 +186,7 @@ def _transcode_to_mp4(src_path: str, dst_path: str) -> bool:
         str(dst_path),
     ]
     if _run_ffmpeg(cmd_copy, src):
+        _ensure_not_canceled(should_abort)
         return True
 
     if os.path.exists(dst_path):
@@ -172,6 +195,7 @@ def _transcode_to_mp4(src_path: str, dst_path: str) -> bool:
         except OSError:
             pass
 
+    _ensure_not_canceled(should_abort)
     cmd_reencode = [
         "ffmpeg",
         "-y",
@@ -182,7 +206,7 @@ def _transcode_to_mp4(src_path: str, dst_path: str) -> bool:
         "-preset",
         "veryfast",
         "-crf",
-        "23",
+        "22",
         "-pix_fmt",
         "yuv420p",
         "-c:a",
@@ -193,66 +217,51 @@ def _transcode_to_mp4(src_path: str, dst_path: str) -> bool:
         "+faststart",
         str(dst_path),
     ]
-    return _run_ffmpeg(cmd_reencode, src)
+    ok = _run_ffmpeg(cmd_reencode, src)
+    _ensure_not_canceled(should_abort)
+    return ok
 
 
-def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
+def _generate_hls(
+    mp4_path: str,
+    out_dir: Path,
+    progress_callback=None,
+    should_abort=None,
+) -> bool:
     if not mp4_path:
         return False
-    out_dir.mkdir(parents=True, exist_ok=True)
-    playlist = out_dir / "index.m3u8"
-    segment_pattern = out_dir / "seg_%05d.ts"
 
+    out_dir.mkdir(parents=True, exist_ok=True)
     segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "2")
-    height = int(os.getenv("HLS_HEIGHT") or "1080")
+    height_main = int(os.getenv("HLS_HEIGHT") or "1080")
     height_low = int(os.getenv("HLS_HEIGHT_LOW") or "720")
-    maxrate = os.getenv("HLS_MAXRATE") or "6000k"
-    bufsize = os.getenv("HLS_BUFSIZE") or "12000k"
+    maxrate_main = os.getenv("HLS_MAXRATE") or "6000k"
+    bufsize_main = os.getenv("HLS_BUFSIZE") or "12000k"
     maxrate_low = os.getenv("HLS_MAXRATE_LOW") or "3000k"
     bufsize_low = os.getenv("HLS_BUFSIZE_LOW") or "6000k"
-    preset = os.getenv("HLS_PRESET") or "fast"
-    crf = os.getenv("HLS_CRF") or "21"
+    crf_main = os.getenv("HLS_CRF") or "21"
     crf_low = os.getenv("HLS_CRF_LOW") or "23"
+    preset = os.getenv("HLS_PRESET") or "slow"
     audio_bitrate = os.getenv("HLS_AUDIO_BITRATE") or "160k"
-    profile = os.getenv("HLS_PROFILE") or "high"
-    level = os.getenv("HLS_LEVEL") or "4.1"
     gop = int(os.getenv("HLS_GOP") or str(segment_seconds * 30))
-    force_reencode = (os.getenv("HLS_FORCE_REENCODE") or "1") == "1"
-    has_audio = _has_audio(mp4_path)
-
-    if height_low >= height:
-        height_low = 0
     if gop < 1:
         gop = segment_seconds * 30
-    multi_variant = height_low > 0
 
-    if not force_reencode and not multi_variant:
-        cmd_copy = [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(mp4_path),
-            "-c",
-            "copy",
-            "-hls_time",
-            str(segment_seconds),
-            "-hls_playlist_type",
-            "vod",
-            "-hls_segment_filename",
-            str(segment_pattern),
-            str(playlist),
-        ]
-        if _run_ffmpeg(cmd_copy, mp4_path):
-            return True
+    _ensure_not_canceled(should_abort)
+    _report(progress_callback, 55, "hls:encoding")
 
-    scale_main = f"scale=-2:{height}:flags=lanczos,format=yuv420p"
+    has_audio = _has_audio(mp4_path)
+    multi_variant = height_low > 0 and height_low < height_main
+    scale_main = f"scale=-2:{height_main}:flags=lanczos,format=yuv420p"
+
     if multi_variant:
         scale_low = f"scale=-2:{height_low}:flags=lanczos,format=yuv420p"
         filter_complex = (
-            f"[0:v]split=2[v0][v1];[v0]{scale_main}[vmain];"
-            f"[v1]{scale_low}[vlow]"
+            f"[0:v]split=2[vmain][vlow];"
+            f"[vmain]{scale_main}[v0];"
+            f"[vlow]{scale_low}[v1]"
         )
-        cmd_reencode = [
+        cmd = [
             "ffmpeg",
             "-y",
             "-i",
@@ -260,54 +269,51 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
             "-filter_complex",
             filter_complex,
             "-map",
-            "[vmain]",
+            "[v0]",
             "-map",
-            "[vlow]",
+            "[v1]",
         ]
         if has_audio:
-            cmd_reencode += ["-map", "0:a:0?", "-map", "0:a:0?"]
+            cmd += ["-map", "0:a:0?", "-map", "0:a:0?"]
         else:
-            cmd_reencode += ["-an"]
-        cmd_reencode += [
+            cmd += ["-an"]
+
+        cmd += [
             "-c:v:0",
             "libx264",
             "-preset",
             preset,
             "-crf",
-            crf,
-            "-profile:v:0",
-            profile,
-            "-level:v:0",
-            level,
+            str(crf_main),
             "-maxrate:v:0",
-            maxrate,
+            maxrate_main,
             "-bufsize:v:0",
-            bufsize,
-            "-g",
+            bufsize_main,
+            "-g:v:0",
             str(gop),
-            "-keyint_min",
+            "-keyint_min:v:0",
             str(gop),
             "-c:v:1",
             "libx264",
             "-preset",
             preset,
             "-crf",
-            crf_low,
-            "-profile:v:1",
-            profile,
-            "-level:v:1",
-            level,
+            str(crf_low),
             "-maxrate:v:1",
             maxrate_low,
             "-bufsize:v:1",
             bufsize_low,
-            "-g",
+            "-g:v:1",
             str(gop),
-            "-keyint_min",
+            "-keyint_min:v:1",
             str(gop),
+            "-sc_threshold",
+            "0",
+            "-force_key_frames",
+            f"expr:gte(t,n_forced*{segment_seconds})",
         ]
         if has_audio:
-            cmd_reencode += [
+            cmd += [
                 "-c:a:0",
                 "aac",
                 "-b:a:0",
@@ -321,19 +327,9 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
                 "-ac:a:1",
                 "2",
             ]
-        cmd_reencode += [
-            "-color_range",
-            "tv",
-            "-colorspace",
-            "bt709",
-            "-color_primaries",
-            "bt709",
-            "-color_trc",
-            "bt709",
-            "-sc_threshold",
-            "0",
-            "-force_key_frames",
-            f"expr:gte(t,n_forced*{segment_seconds})",
+        cmd += [
+            "-f",
+            "hls",
             "-hls_time",
             str(segment_seconds),
             "-hls_playlist_type",
@@ -341,84 +337,80 @@ def _generate_hls(mp4_path: str, out_dir: Path) -> bool:
             "-hls_flags",
             "independent_segments",
             "-hls_segment_filename",
-            str(out_dir / "seg_%v_%05d.ts"),
+            str(out_dir / "v%v_seg_%05d.ts"),
             "-master_pl_name",
             "index.m3u8",
             "-var_stream_map",
             "v:0,a:0 v:1,a:1" if has_audio else "v:0 v:1",
-            str(out_dir / "index_%v.m3u8"),
+            str(out_dir / "v%v.m3u8"),
         ]
-        return _run_ffmpeg(cmd_reencode, mp4_path)
+    else:
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(mp4_path),
+            "-vf",
+            scale_main,
+            "-c:v",
+            "libx264",
+            "-preset",
+            preset,
+            "-crf",
+            str(crf_main),
+            "-maxrate",
+            maxrate_main,
+            "-bufsize",
+            bufsize_main,
+            "-g",
+            str(gop),
+            "-keyint_min",
+            str(gop),
+            "-sc_threshold",
+            "0",
+            "-force_key_frames",
+            f"expr:gte(t,n_forced*{segment_seconds})",
+        ]
+        if has_audio:
+            cmd += [
+                "-c:a",
+                "aac",
+                "-b:a",
+                audio_bitrate,
+                "-ac",
+                "2",
+            ]
+        else:
+            cmd += ["-an"]
+        cmd += [
+            "-f",
+            "hls",
+            "-hls_time",
+            str(segment_seconds),
+            "-hls_playlist_type",
+            "vod",
+            "-hls_flags",
+            "independent_segments",
+            "-hls_segment_filename",
+            str(out_dir / "seg_%05d.ts"),
+            str(out_dir / "index.m3u8"),
+        ]
 
-    cmd_reencode = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(mp4_path),
-        "-vf",
-        scale_main,
-        "-c:v",
-        "libx264",
-        "-preset",
-        preset,
-        "-crf",
-        crf,
-        "-profile:v",
-        profile,
-        "-level",
-        level,
-        "-maxrate",
-        maxrate,
-        "-bufsize",
-        bufsize,
-        "-g",
-        str(gop),
-        "-keyint_min",
-        str(gop),
-        "-c:a",
-        "aac",
-        "-b:a",
-        audio_bitrate,
-        "-color_range",
-        "tv",
-        "-colorspace",
-        "bt709",
-        "-color_primaries",
-        "bt709",
-        "-color_trc",
-        "bt709",
-        "-sc_threshold",
-        "0",
-        "-force_key_frames",
-        f"expr:gte(t,n_forced*{segment_seconds})",
-        "-hls_time",
-        str(segment_seconds),
-        "-hls_playlist_type",
-        "vod",
-        "-hls_flags",
-        "independent_segments",
-        "-hls_segment_filename",
-        str(segment_pattern),
-        str(playlist),
-    ]
-    if not has_audio:
-        try:
-            idx = cmd_reencode.index("-c:a")
-            del cmd_reencode[idx:idx + 4]
-        except ValueError:
-            pass
-        try:
-            insert_at = cmd_reencode.index("-color_range")
-        except ValueError:
-            insert_at = len(cmd_reencode)
-        cmd_reencode.insert(insert_at, "-an")
-    return _run_ffmpeg(cmd_reencode, mp4_path)
+    ok = _run_ffmpeg(cmd, mp4_path)
+    if not ok:
+        return False
+
+    _ensure_not_canceled(should_abort)
+    _report(progress_callback, 95, "hls:finalizing")
+    return True
 
 
 def prepare_video_for_streaming(
     file_field,
     model=None,
     kind: str = None,
+    progress_callback=None,
+    should_abort=None,
 ) -> bool:
     if not file_field:
         return False
@@ -431,8 +423,12 @@ def prepare_video_for_streaming(
     if not _is_video_file(name):
         return False
 
+    _ensure_not_canceled(should_abort)
+    _report(progress_callback, 5, "validate")
+
     if _is_mp4(name):
-        ok = faststart_inplace(path)
+        _report(progress_callback, 20, "faststart")
+        ok = faststart_inplace(path, should_abort=should_abort)
         if not ok:
             return False
         mp4_path = path
@@ -452,7 +448,8 @@ def prepare_video_for_streaming(
         )
         os.close(tmp_fd)
 
-        ok = _transcode_to_mp4(path, tmp_path)
+        _report(progress_callback, 20, "remux")
+        ok = _transcode_to_mp4(path, tmp_path, should_abort=should_abort)
         if not ok:
             try:
                 os.unlink(tmp_path)
@@ -460,6 +457,7 @@ def prepare_video_for_streaming(
                 pass
             return False
 
+        _ensure_not_canceled(should_abort)
         try:
             os.replace(tmp_path, new_path)
         except OSError as exc:
@@ -484,7 +482,11 @@ def prepare_video_for_streaming(
         mp4_path = new_path
 
     if not model or not model.pk:
+        _report(progress_callback, 100, "done")
         return True
+
+    _ensure_not_canceled(should_abort)
+    _report(progress_callback, 40, "hls:prepare")
 
     hls_kind = kind or "video"
     if kind is None:
@@ -496,4 +498,15 @@ def prepare_video_for_streaming(
     if out_dir.exists():
         shutil.rmtree(out_dir, ignore_errors=True)
     out_dir.mkdir(parents=True, exist_ok=True)
-    return _generate_hls(mp4_path, out_dir)
+
+    ok = _generate_hls(
+        mp4_path,
+        out_dir,
+        progress_callback=progress_callback,
+        should_abort=should_abort,
+    )
+    if not ok:
+        return False
+
+    _report(progress_callback, 100, "done")
+    return True
