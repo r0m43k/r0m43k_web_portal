@@ -251,7 +251,12 @@ const AdminApp = (() => {
       setUploadBusy(false);
       activeXhr = null;
       if (xhr.status < 200 || xhr.status >= 300) {
-        setProgress(uploadBar, uploadText, 0, "Upload failed");
+        let detail = `Upload failed (HTTP ${xhr.status || 0})`;
+        try {
+          const payload = JSON.parse(xhr.responseText || "{}");
+          if (payload?.detail) detail = `${detail}: ${payload.detail}`;
+        } catch {}
+        setProgress(uploadBar, uploadText, 0, detail);
         return;
       }
       let payload = null;
@@ -276,7 +281,13 @@ const AdminApp = (() => {
     xhr.addEventListener("error", () => {
       setUploadBusy(false);
       activeXhr = null;
-      setProgress(uploadBar, uploadText, 0, "Network error during upload");
+      const st = xhr.status || 0;
+      setProgress(
+        uploadBar,
+        uploadText,
+        0,
+        `Network error during upload (status ${st})`
+      );
     });
 
     xhr.addEventListener("abort", () => {
