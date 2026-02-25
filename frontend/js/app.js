@@ -20,6 +20,10 @@ const FeedApp = (() => {
   let currentUser = null;
   let activeCommentVideoId = null;
 
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   function formatTime(iso) {
     try {
       const d = new Date(iso);
@@ -498,59 +502,78 @@ const FeedApp = (() => {
     if (!heroVideo) return;
     setQualityBadge(heroQuality, "авто");
 
-    try {
-      const res = await fetch("/api/hero/", { credentials: "include" });
-      if (!res.ok) {
-        heroVideo.removeAttribute("src");
-        heroVideo.removeAttribute("poster");
-        if (heroLoader) heroLoader.classList.add("is-hidden");
-        if (heroQuality) heroQuality.hidden = true;
-        heroPost?.classList.add("is-empty");
-        return;
-      }
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const res = await fetch("/api/hero/", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          if (res.status === 404) {
+            heroVideo.removeAttribute("src");
+            heroVideo.removeAttribute("poster");
+            if (heroLoader) heroLoader.classList.add("is-hidden");
+            if (heroQuality) heroQuality.hidden = true;
+            heroPost?.classList.add("is-empty");
+            return;
+          }
+          throw new Error(`hero api ${res.status}`);
+        }
 
-      const data = await res.json();
-      const url = data.file_url || data.file;
-      const hlsUrl = data.hls_url || data.hls;
-      if (!url) {
-        heroVideo.removeAttribute("src");
-        heroVideo.removeAttribute("poster");
-        if (heroLoader) heroLoader.classList.add("is-hidden");
-        if (heroQuality) heroQuality.hidden = true;
-        heroPost?.classList.add("is-empty");
-        return;
-      }
+        const data = await res.json();
+        const url = data.file_url || data.file;
+        const hlsUrl = data.hls_url || data.hls;
+        if (!url) {
+          heroVideo.removeAttribute("src");
+          heroVideo.removeAttribute("poster");
+          if (heroLoader) heroLoader.classList.add("is-hidden");
+          if (heroQuality) heroQuality.hidden = true;
+          heroPost?.classList.add("is-empty");
+          return;
+        }
 
-      if (isImageUrl(url)) {
+        if (isImageUrl(url)) {
+          const source = heroVideo.querySelector("source");
+          if (source) source.removeAttribute("src");
+          heroVideo.removeAttribute("src");
+          heroVideo.poster = url;
+          heroVideo.load();
+          if (heroLoader) heroLoader.classList.add("is-hidden");
+          if (heroQuality) heroQuality.hidden = true;
+          heroPost?.classList.remove("is-empty");
+          if (heroPost) heroPost.classList.add("is-image");
+          return;
+        }
+        if (heroQuality) heroQuality.hidden = false;
+
+        heroVideo.loop = true;
+        heroVideo.muted = true;
+        heroVideo.autoplay = true;
+        heroVideo.preload = "metadata";
+        heroVideo.setAttribute("playsinline", "");
+
+        attachVideoLoader(heroVideo, heroLoader);
+
         const source = heroVideo.querySelector("source");
         if (source) source.removeAttribute("src");
         heroVideo.removeAttribute("src");
-        heroVideo.poster = url;
-        heroVideo.load();
-        if (heroLoader) heroLoader.classList.add("is-hidden");
-        if (heroQuality) heroQuality.hidden = true;
         heroPost?.classList.remove("is-empty");
-        if (heroPost) heroPost.classList.add("is-image");
+
+        attachStreamSource(heroVideo, url, hlsUrl, heroQuality);
+        heroVideo.play().catch(() => {});
         return;
+      } catch {
+        if (attempt < 3) {
+          await sleep(600 * attempt);
+        }
       }
-      if (heroQuality) heroQuality.hidden = false;
+    }
 
-      heroVideo.loop = true;
-      heroVideo.muted = true;
-      heroVideo.autoplay = true;
-      heroVideo.preload = "metadata";
-      heroVideo.setAttribute("playsinline", "");
-
-      attachVideoLoader(heroVideo, heroLoader);
-
-      const source = heroVideo.querySelector("source");
-      if (source) source.removeAttribute("src");
-      heroVideo.removeAttribute("src");
-      heroPost?.classList.remove("is-empty");
-
-      attachStreamSource(heroVideo, url, hlsUrl, heroQuality);
-      heroVideo.play().catch(() => {});
-    } catch {}
+    heroVideo.removeAttribute("src");
+    heroVideo.removeAttribute("poster");
+    if (heroLoader) heroLoader.classList.add("is-hidden");
+    if (heroQuality) heroQuality.hidden = true;
+    heroPost?.classList.add("is-empty");
   }
 
 
@@ -689,19 +712,34 @@ const FeedApp = (() => {
   }
 
   async function fetchVideos() {
-    const res = await fetch(normalizeApiUrl(nextUrl), { credentials: "include" });
-    if (!res.ok) throw new Error("API " + res.status);
+    let lastError = null;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const res = await fetch(normalizeApiUrl(nextUrl), {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error("API " + res.status);
 
-    const data = await res.json();
+        const data = await res.json();
 
-    if (Array.isArray(data)) {
-      done = true;
-      return { items: data, next: null };
+        if (Array.isArray(data)) {
+          done = true;
+          return { items: data, next: null };
+        }
+
+        const items = data.results || [];
+        const next = data.next ? data.next : null;
+        return { items, next };
+      } catch (err) {
+        lastError = err;
+        if (attempt < 3) {
+          await sleep(500 * attempt);
+          continue;
+        }
+      }
     }
-
-    const items = data.results || [];
-    const next = data.next ? data.next : null;
-    return { items, next };
+    throw lastError || new Error("API unavailable");
   }
 
   async function loadNextPage() {
@@ -779,7 +817,13 @@ const FeedApp = (() => {
   function setupInfiniteScroll() {
     const io = new IntersectionObserver(async (entries) => {
       if (!entries.some(e => e.isIntersecting)) return;
-      await loadNextPage();
+      try {
+        await loadNextPage();
+      } catch {
+        setTimeout(() => {
+          loadNextPage().catch(() => {});
+        }, 1200);
+      }
     }, { rootMargin: "1500px 0px" });
 
     io.observe(sentinel);
@@ -801,7 +845,10 @@ const FeedApp = (() => {
 
     // IMPORTANT: мы можем начать подгрузку сразу, но это не мешает —
     // hero остаётся первым экраном, а посты просто появятся ниже.
-    const firstPagePromise = loadNextPage().catch(() => {});
+    const firstPagePromise = loadNextPage().catch(async () => {
+      await sleep(1000);
+      return loadNextPage().catch(() => {});
+    });
     await Promise.all([heroLoadPromise, firstPagePromise]);
 
     // Кнопка "смотреть" = проскроллить к первому посту
