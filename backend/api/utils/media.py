@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import json
 from pathlib import Path
 
 from django.conf import settings
@@ -100,6 +101,79 @@ def _has_audio(path: str) -> bool:
     if result.returncode != 0:
         return False
     return bool(result.stdout.strip())
+
+
+def _probe_video_stream(path: str) -> dict:
+    if not path:
+        return {}
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=color_transfer,color_primaries,color_space",
+                "-of",
+                "json",
+                str(path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except FileNotFoundError:
+        return {}
+    if result.returncode != 0:
+        return {}
+    try:
+        payload = json.loads(result.stdout.decode("utf-8", "ignore") or "{}")
+    except json.JSONDecodeError:
+        return {}
+    streams = payload.get("streams") or []
+    if not streams:
+        return {}
+    stream = streams[0] or {}
+    return {
+        "color_transfer": str(stream.get("color_transfer") or "").lower(),
+        "color_primaries": str(stream.get("color_primaries") or "").lower(),
+        "color_space": str(stream.get("color_space") or "").lower(),
+    }
+
+
+def _is_hdr_source(path: str) -> bool:
+    info = _probe_video_stream(path)
+    transfer = info.get("color_transfer") or ""
+    primaries = info.get("color_primaries") or ""
+    color_space = info.get("color_space") or ""
+    if transfer in {"smpte2084", "arib-std-b67"}:
+        return True
+    if primaries in {"bt2020", "bt2020-10", "bt2020-12"}:
+        return True
+    if color_space in {"bt2020nc", "bt2020c"}:
+        return True
+    return False
+
+
+def _sanitize_segment_tag(raw: str) -> str:
+    value = str(raw or "").strip()
+    safe = "".join(ch for ch in value if ch.isalnum() or ch in {"-", "_"})
+    return safe or os.urandom(4).hex()
+
+
+def _scale_filter(height: int, hdr_to_sdr: bool) -> str:
+    if hdr_to_sdr:
+        # Convert HDR sources to SDR so browsers avoid near-black output.
+        return (
+            "zscale=t=linear:npl=100,format=gbrpf32le,"
+            "tonemap=bt2390:desat=0,"
+            f"zscale=t=bt709:m=bt709:r=tv:p=bt709,"
+            f"scale=-2:{height}:flags=lanczos,"
+            "format=yuv420p"
+        )
+    return f"scale=-2:{height}:flags=lanczos,format=yuv420p"
 
 
 def hls_dir(kind: str, object_id: int) -> Path:
@@ -245,6 +319,9 @@ def _generate_hls(
     audio_bitrate = os.getenv("HLS_AUDIO_BITRATE") or "160k"
     fast_mode_enabled = (os.getenv("HLS_FAST_MODE") or "1") == "1"
     fast_mode_min_mb = int(os.getenv("HLS_FAST_MODE_MIN_MB") or "500")
+    segment_tag = _sanitize_segment_tag(
+        os.getenv("HLS_SEGMENT_TAG") or os.urandom(5).hex()
+    )
     gop = int(os.getenv("HLS_GOP") or str(segment_seconds * 30))
     if gop < 1:
         gop = segment_seconds * 30
@@ -266,103 +343,125 @@ def _generate_hls(
             56,
             f"hls:fast-mode ({source_size_mb}MB, single variant)",
         )
-    scale_main = f"scale=-2:{height_main}:flags=lanczos,format=yuv420p"
 
-    if multi_variant:
-        scale_low = f"scale=-2:{height_low}:flags=lanczos,format=yuv420p"
-        filter_complex = (
-            f"[0:v]split=2[vmain][vlow];"
-            f"[vmain]{scale_main}[v0];"
-            f"[vlow]{scale_low}[v1]"
-        )
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(mp4_path),
-            "-filter_complex",
-            filter_complex,
-            "-map",
-            "[v0]",
-            "-map",
-            "[v1]",
-        ]
-        if has_audio:
-            cmd += ["-map", "0:a:0?", "-map", "0:a:0?"]
-        else:
-            cmd += ["-an"]
+    hdr_source = _is_hdr_source(mp4_path)
+    if hdr_source:
+        _report(progress_callback, 57, "hls:hdr-tonemap")
 
-        cmd += [
-            "-c:v:0",
-            "libx264",
-            "-preset",
-            preset,
-            "-crf",
-            str(crf_main),
-            "-threads:v:0",
-            "0",
-            "-maxrate:v:0",
-            maxrate_main,
-            "-bufsize:v:0",
-            bufsize_main,
-            "-g:v:0",
-            str(gop),
-            "-keyint_min:v:0",
-            str(gop),
-            "-c:v:1",
-            "libx264",
-            "-preset",
-            preset,
-            "-crf",
-            str(crf_low),
-            "-threads:v:1",
-            "0",
-            "-maxrate:v:1",
-            maxrate_low,
-            "-bufsize:v:1",
-            bufsize_low,
-            "-g:v:1",
-            str(gop),
-            "-keyint_min:v:1",
-            str(gop),
-            "-sc_threshold",
-            "0",
-            "-force_key_frames",
-            f"expr:gte(t,n_forced*{segment_seconds})",
-        ]
-        if has_audio:
-            cmd += [
-                "-c:a:0",
-                "aac",
-                "-b:a:0",
-                audio_bitrate,
-                "-ac:a:0",
-                "2",
-                "-c:a:1",
-                "aac",
-                "-b:a:1",
-                audio_bitrate,
-                "-ac:a:1",
-                "2",
+    def build_hls_cmd(hdr_to_sdr: bool):
+        scale_main = _scale_filter(height_main, hdr_to_sdr)
+        if multi_variant:
+            scale_low = _scale_filter(height_low, hdr_to_sdr)
+            filter_complex = (
+                f"[0:v]split=2[vmain][vlow];"
+                f"[vmain]{scale_main}[v0];"
+                f"[vlow]{scale_low}[v1]"
+            )
+            cmd = [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(mp4_path),
+                "-filter_complex",
+                filter_complex,
+                "-map",
+                "[v0]",
+                "-map",
+                "[v1]",
             ]
-        cmd += [
-            "-f",
-            "hls",
-            "-hls_time",
-            str(segment_seconds),
-            "-hls_playlist_type",
-            "vod",
-            "-hls_flags",
-            "independent_segments",
-            "-hls_segment_filename",
-            str(out_dir / "v%v_seg_%05d.ts"),
-            "-master_pl_name",
-            "index.m3u8",
-            "-var_stream_map",
-            "v:0,a:0 v:1,a:1" if has_audio else "v:0 v:1",
-            str(out_dir / "v%v.m3u8"),
-        ]
-    else:
+            if has_audio:
+                cmd += ["-map", "0:a:0?", "-map", "0:a:0?"]
+            else:
+                cmd += ["-an"]
+
+            cmd += [
+                "-c:v:0",
+                "libx264",
+                "-preset",
+                preset,
+                "-crf",
+                str(crf_main),
+                "-threads:v:0",
+                "0",
+                "-maxrate:v:0",
+                maxrate_main,
+                "-bufsize:v:0",
+                bufsize_main,
+                "-g:v:0",
+                str(gop),
+                "-keyint_min:v:0",
+                str(gop),
+                "-color_primaries:v:0",
+                "bt709",
+                "-color_trc:v:0",
+                "bt709",
+                "-colorspace:v:0",
+                "bt709",
+                "-color_range:v:0",
+                "tv",
+                "-c:v:1",
+                "libx264",
+                "-preset",
+                preset,
+                "-crf",
+                str(crf_low),
+                "-threads:v:1",
+                "0",
+                "-maxrate:v:1",
+                maxrate_low,
+                "-bufsize:v:1",
+                bufsize_low,
+                "-g:v:1",
+                str(gop),
+                "-keyint_min:v:1",
+                str(gop),
+                "-color_primaries:v:1",
+                "bt709",
+                "-color_trc:v:1",
+                "bt709",
+                "-colorspace:v:1",
+                "bt709",
+                "-color_range:v:1",
+                "tv",
+                "-sc_threshold",
+                "0",
+                "-force_key_frames",
+                f"expr:gte(t,n_forced*{segment_seconds})",
+            ]
+            if has_audio:
+                cmd += [
+                    "-c:a:0",
+                    "aac",
+                    "-b:a:0",
+                    audio_bitrate,
+                    "-ac:a:0",
+                    "2",
+                    "-c:a:1",
+                    "aac",
+                    "-b:a:1",
+                    audio_bitrate,
+                    "-ac:a:1",
+                    "2",
+                ]
+            cmd += [
+                "-f",
+                "hls",
+                "-hls_time",
+                str(segment_seconds),
+                "-hls_playlist_type",
+                "vod",
+                "-hls_flags",
+                "independent_segments",
+                "-hls_segment_filename",
+                str(out_dir / f"v%v_{segment_tag}_seg_%05d.ts"),
+                "-master_pl_name",
+                "index.m3u8",
+                "-var_stream_map",
+                "v:0,a:0 v:1,a:1" if has_audio else "v:0 v:1",
+                str(out_dir / "v%v.m3u8"),
+            ]
+            return cmd
+
         cmd = [
             "ffmpeg",
             "-y",
@@ -386,6 +485,14 @@ def _generate_hls(
             str(gop),
             "-keyint_min",
             str(gop),
+            "-color_primaries",
+            "bt709",
+            "-color_trc",
+            "bt709",
+            "-colorspace",
+            "bt709",
+            "-color_range",
+            "tv",
             "-sc_threshold",
             "0",
             "-force_key_frames",
@@ -412,11 +519,17 @@ def _generate_hls(
             "-hls_flags",
             "independent_segments",
             "-hls_segment_filename",
-            str(out_dir / "seg_%05d.ts"),
+            str(out_dir / f"{segment_tag}_seg_%05d.ts"),
             str(out_dir / "index.m3u8"),
         ]
+        return cmd
 
+    cmd = build_hls_cmd(hdr_source)
     ok = _run_ffmpeg(cmd, mp4_path)
+    if not ok and hdr_source:
+        _report(progress_callback, 58, "hls:retry-without-tonemap")
+        cmd = build_hls_cmd(False)
+        ok = _run_ffmpeg(cmd, mp4_path)
     if not ok:
         return False
 

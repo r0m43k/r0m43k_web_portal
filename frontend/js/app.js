@@ -423,11 +423,39 @@ const FeedApp = (() => {
     videoEl.preload = "metadata";
     ensureLoopPlayback(videoEl);
     const { updateFromVideo } = bindQualityTracking(videoEl, qualityEl);
+    let startupTimer = null;
+    let startupErrorCount = 0;
+    let firstFrameSeen = false;
+
+    const clearStartupWatchdog = () => {
+      if (startupTimer) {
+        clearTimeout(startupTimer);
+        startupTimer = null;
+      }
+    };
+
+    const markFirstFrame = () => {
+      firstFrameSeen = true;
+      clearStartupWatchdog();
+    };
+
+    const armStartupWatchdog = () => {
+      clearStartupWatchdog();
+      startupTimer = setTimeout(() => {
+        if (firstFrameSeen) return;
+        fallbackToMp4();
+      }, 7000);
+    };
+
+    videoEl.addEventListener("loadeddata", markFirstFrame, { once: true });
+    videoEl.addEventListener("playing", markFirstFrame, { once: true });
+    videoEl.addEventListener("timeupdate", markFirstFrame, { once: true });
 
     const fallbackToMp4 = () => {
       if (!src) return;
       if (videoEl.dataset.hlsFallback === "1") return;
       videoEl.dataset.hlsFallback = "1";
+      clearStartupWatchdog();
       if (videoEl.__hls) {
         try { videoEl.__hls.destroy(); } catch {}
         delete videoEl.__hls;
@@ -472,10 +500,26 @@ const FeedApp = (() => {
         updateFromVideo();
       });
       hls.on(window.Hls.Events.ERROR, (_evt, data) => {
-        if (data?.fatal) fallbackToMp4();
+        if (data?.fatal) {
+          fallbackToMp4();
+          return;
+        }
+        if (!firstFrameSeen) {
+          const type = data?.type;
+          const isStartupStreamError =
+            type === window.Hls.ErrorTypes.NETWORK_ERROR ||
+            type === window.Hls.ErrorTypes.MEDIA_ERROR;
+          if (isStartupStreamError) {
+            startupErrorCount += 1;
+            if (startupErrorCount >= 2) {
+              fallbackToMp4();
+            }
+          }
+        }
       });
       hls.loadSource(hlsUrl);
       hls.attachMedia(videoEl);
+      armStartupWatchdog();
       return;
     }
 
@@ -488,10 +532,13 @@ const FeedApp = (() => {
       );
       videoEl.load();
       videoEl.addEventListener("loadedmetadata", updateFromVideo, { once: true });
+      armStartupWatchdog();
+      videoEl.play().catch(() => {});
       return;
     }
 
     if (src) {
+      clearStartupWatchdog();
       videoEl.src = src;
       videoEl.load();
       videoEl.addEventListener("loadedmetadata", updateFromVideo, { once: true });

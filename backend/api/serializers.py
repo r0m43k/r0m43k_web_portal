@@ -10,6 +10,30 @@ def _abs_url(request, value):
     return request.build_absolute_uri(value) if request else value
 
 
+def _hls_is_ready(kind: str, object_id: int) -> bool:
+    if not object_id:
+        return False
+
+    filters = {"kind": kind}
+    if kind == MediaJob.Kind.VIDEO:
+        filters["video_id"] = object_id
+    elif kind == MediaJob.Kind.HERO:
+        filters["hero_id"] = object_id
+    else:
+        return False
+
+    latest_status = (
+        MediaJob.objects.filter(**filters)
+        .order_by("-created_at")
+        .values_list("status", flat=True)
+        .first()
+    )
+    if latest_status is None:
+        # Backward compatibility for old media with no job records.
+        return True
+    return latest_status == MediaJob.Status.DONE
+
+
 class VideoSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     hls_url = serializers.SerializerMethodField()
@@ -40,6 +64,8 @@ class VideoSerializer(serializers.ModelSerializer):
 
     def get_hls_url(self, obj):
         if not obj.pk:
+            return None
+        if not _hls_is_ready(MediaJob.Kind.VIDEO, obj.pk):
             return None
         manifest = hls_manifest_path("video", obj.pk)
         if not manifest.exists():
@@ -86,6 +112,8 @@ class HeroVideoSerializer(serializers.ModelSerializer):
     def get_hls_url(self, obj):
         if not obj.pk:
             return None
+        if not _hls_is_ready(MediaJob.Kind.HERO, obj.pk):
+            return None
         manifest = hls_manifest_path("hero", obj.pk)
         if not manifest.exists():
             return None
@@ -115,6 +143,8 @@ class AdminHeroVideoSerializer(serializers.ModelSerializer):
 
     def get_hls_url(self, obj):
         if not obj.pk:
+            return None
+        if not _hls_is_ready(MediaJob.Kind.HERO, obj.pk):
             return None
         manifest = hls_manifest_path("hero", obj.pk)
         if not manifest.exists():
@@ -168,6 +198,8 @@ class AdminVideoSerializer(serializers.ModelSerializer):
 
     def get_hls_url(self, obj):
         if not obj.pk:
+            return None
+        if not _hls_is_ready(MediaJob.Kind.VIDEO, obj.pk):
             return None
         manifest = hls_manifest_path("video", obj.pk)
         if not manifest.exists():
@@ -236,10 +268,14 @@ class AdminMediaJobSerializer(serializers.ModelSerializer):
     def get_hls_url(self, obj):
         request = self.context.get("request")
         if obj.video_id:
+            if not _hls_is_ready(MediaJob.Kind.VIDEO, obj.video_id):
+                return None
             manifest = hls_manifest_path("video", obj.video_id)
             if manifest.exists():
                 return hls_manifest_url(request, "video", obj.video_id)
         if obj.hero_id:
+            if not _hls_is_ready(MediaJob.Kind.HERO, obj.hero_id):
+                return None
             manifest = hls_manifest_path("hero", obj.hero_id)
             if manifest.exists():
                 return hls_manifest_url(request, "hero", obj.hero_id)
