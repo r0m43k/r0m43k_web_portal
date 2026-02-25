@@ -150,3 +150,49 @@ class AuthBridgeTests(TestCase):
 
         admin_res = self.client.get("/admin/")
         self.assertEqual(admin_res.status_code, 302)
+
+
+class CommentPermissionTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.author = user_model.objects.create_user(
+            username="author1",
+            email="author1@example.com",
+            password="pass12345",
+        )
+        self.viewer = user_model.objects.create_user(
+            username="viewer1",
+            email="viewer1@example.com",
+            password="pass12345",
+        )
+        self.video = Video.objects.create(
+            owner=self.author,
+            title="Commentable video",
+            file=SimpleUploadedFile(
+                "commentable.mp4",
+                b"video-comment",
+                content_type="video/mp4",
+            ),
+            status=Video.Status.APPROVED,
+        )
+        self.client = APIClient()
+
+    def test_authenticated_user_can_create_comment(self):
+        self.client.force_authenticate(user=self.viewer)
+        res = self.client.post(
+            f"/api/videos/{self.video.id}/comments/",
+            {"text": "nice clip"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201)
+        payload = res.json()
+        self.assertEqual(payload.get("text"), "nice clip")
+        self.assertEqual(payload.get("user"), "viewer1")
+
+    def test_guest_cannot_create_comment(self):
+        res = self.client.post(
+            f"/api/videos/{self.video.id}/comments/",
+            {"text": "guest comment"},
+            format="json",
+        )
+        self.assertIn(res.status_code, (401, 403))

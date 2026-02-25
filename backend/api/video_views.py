@@ -118,7 +118,7 @@ class VideoCommentListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == "GET":
             return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
+        return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
         video = get_object_or_404(Video, pk=self.kwargs["video_id"])
