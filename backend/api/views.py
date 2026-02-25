@@ -16,6 +16,8 @@ class HeroVideoView(APIView):
             .order_by("-updated_at", "-id")
             .first()
         )
+        if not hero:
+            hero = HeroVideo.objects.order_by("-updated_at", "-id").first()
 
         if not hero:
             return Response({"detail": "Hero video not found"}, status=404)

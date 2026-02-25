@@ -232,17 +232,19 @@ def _generate_hls(
         return False
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "2")
+    segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "4")
     height_main = int(os.getenv("HLS_HEIGHT") or "1080")
     height_low = int(os.getenv("HLS_HEIGHT_LOW") or "720")
     maxrate_main = os.getenv("HLS_MAXRATE") or "6000k"
     bufsize_main = os.getenv("HLS_BUFSIZE") or "12000k"
     maxrate_low = os.getenv("HLS_MAXRATE_LOW") or "3000k"
     bufsize_low = os.getenv("HLS_BUFSIZE_LOW") or "6000k"
-    crf_main = os.getenv("HLS_CRF") or "21"
-    crf_low = os.getenv("HLS_CRF_LOW") or "23"
-    preset = os.getenv("HLS_PRESET") or "slow"
+    crf_main = os.getenv("HLS_CRF") or "22"
+    crf_low = os.getenv("HLS_CRF_LOW") or "24"
+    preset = os.getenv("HLS_PRESET") or "veryfast"
     audio_bitrate = os.getenv("HLS_AUDIO_BITRATE") or "160k"
+    fast_mode_enabled = (os.getenv("HLS_FAST_MODE") or "1") == "1"
+    fast_mode_min_mb = int(os.getenv("HLS_FAST_MODE_MIN_MB") or "500")
     gop = int(os.getenv("HLS_GOP") or str(segment_seconds * 30))
     if gop < 1:
         gop = segment_seconds * 30
@@ -252,6 +254,18 @@ def _generate_hls(
 
     has_audio = _has_audio(mp4_path)
     multi_variant = height_low > 0 and height_low < height_main
+    source_size_mb = 0
+    try:
+        source_size_mb = int(Path(mp4_path).stat().st_size / (1024 * 1024))
+    except OSError:
+        source_size_mb = 0
+    if fast_mode_enabled and source_size_mb >= fast_mode_min_mb:
+        multi_variant = False
+        _report(
+            progress_callback,
+            56,
+            f"hls:fast-mode ({source_size_mb}MB, single variant)",
+        )
     scale_main = f"scale=-2:{height_main}:flags=lanczos,format=yuv420p"
 
     if multi_variant:
@@ -285,6 +299,8 @@ def _generate_hls(
             preset,
             "-crf",
             str(crf_main),
+            "-threads:v:0",
+            "0",
             "-maxrate:v:0",
             maxrate_main,
             "-bufsize:v:0",
@@ -299,6 +315,8 @@ def _generate_hls(
             preset,
             "-crf",
             str(crf_low),
+            "-threads:v:1",
+            "0",
             "-maxrate:v:1",
             maxrate_low,
             "-bufsize:v:1",
@@ -358,6 +376,8 @@ def _generate_hls(
             preset,
             "-crf",
             str(crf_main),
+            "-threads",
+            "0",
             "-maxrate",
             maxrate_main,
             "-bufsize",

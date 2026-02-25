@@ -3,6 +3,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Max
 from django.utils import timezone
 
 
@@ -36,14 +37,23 @@ class Video(models.Model):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )
+    display_order = models.PositiveIntegerField(default=0, db_index=True)
     reject_reason = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["-published_at", "-created_at"]
+        ordering = ["display_order", "-published_at", "-created_at", "-id"]
 
     def save(self, *args, **kwargs):
+        if self._state.adding and int(self.display_order or 0) <= 0:
+            max_order = (
+                Video.objects.aggregate(
+                    max_display_order=Max("display_order")
+                )["max_display_order"]
+                or 0
+            )
+            self.display_order = int(max_order) + 1
         if self.status == self.Status.APPROVED and self.published_at is None:
             self.published_at = timezone.now()
         if self.status != self.Status.APPROVED:

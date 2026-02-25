@@ -168,6 +168,76 @@
   color: var(--muted);
 }
 
+.admin__hero-preview {
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  min-height: 120px;
+  padding: 10px;
+  display: grid;
+  place-items: center;
+}
+
+.admin__hero-media {
+  width: 100%;
+  max-height: 280px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #000;
+}
+
+.admin__order-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-order-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px 12px;
+  cursor: grab;
+}
+
+.admin-order-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.admin-order-item.is-dragging {
+  opacity: 0.55;
+}
+
+.admin-order-item.is-drop-target {
+  border-color: #4c8bf5;
+  box-shadow: 0 0 0 1px rgba(76, 139, 245, 0.4);
+}
+
+.admin-order-item__grip {
+  font-size: 18px;
+  line-height: 1;
+  color: #8ea4c8;
+  user-select: none;
+}
+
+.admin-order-item__title {
+  font-weight: 600;
+}
+
+.admin-order-item__meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.admin-order-item__idx {
+  font-size: 11px;
+  color: #9db3d8;
+}
+
 @media (max-width: 820px) {
   .admin-page {
     padding-top: 56px;

@@ -9,11 +9,13 @@ from .auth_views import (
     VerifyEmailView,
 )
 from .admin_views import (
+    AdminHeroCurrentView,
     AdminHeroUploadView,
     AdminJobCancelView,
     AdminJobRetryView,
     AdminJobStatusView,
     AdminUploadStatusView,
+    AdminVideoOrderView,
     AdminVideoListCreateView,
 )
 from .video_views import (
@@ -43,10 +45,21 @@ urlpatterns = [
     ),
     path("videos/<int:video_id>/like/", VideoLikeToggleView.as_view()),
     path("hero/", HeroVideoView.as_view()),
+    path("hero", HeroVideoView.as_view()),
     path("admin/videos", AdminVideoListCreateView.as_view()),
+    path("admin/videos/", AdminVideoListCreateView.as_view()),
+    path("admin/videos/order", AdminVideoOrderView.as_view()),
+    path("admin/videos/order/", AdminVideoOrderView.as_view()),
     path("admin/uploads/<int:upload_id>", AdminUploadStatusView.as_view()),
+    path("admin/uploads/<int:upload_id>/", AdminUploadStatusView.as_view()),
     path("admin/jobs/<int:job_id>", AdminJobStatusView.as_view()),
+    path("admin/jobs/<int:job_id>/", AdminJobStatusView.as_view()),
     path("admin/jobs/<int:job_id>/retry", AdminJobRetryView.as_view()),
+    path("admin/jobs/<int:job_id>/retry/", AdminJobRetryView.as_view()),
     path("admin/jobs/<int:job_id>/cancel", AdminJobCancelView.as_view()),
+    path("admin/jobs/<int:job_id>/cancel/", AdminJobCancelView.as_view()),
+    path("admin/hero", AdminHeroUploadView.as_view()),
     path("admin/hero/", AdminHeroUploadView.as_view()),
+    path("admin/hero/current", AdminHeroCurrentView.as_view()),
+    path("admin/hero/current/", AdminHeroCurrentView.as_view()),
 ]

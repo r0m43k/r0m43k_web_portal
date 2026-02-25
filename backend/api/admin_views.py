@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -10,6 +11,7 @@ from rest_framework.views import APIView
 
 from .models import HeroVideo, MediaJob, UploadSession, Video
 from .serializers import (
+    AdminHeroVideoSerializer,
     AdminMediaJobSerializer,
     AdminUploadSessionSerializer,
     AdminVideoSerializer,
@@ -32,7 +34,7 @@ class AdminVideoListCreateView(APIView):
                 likes_count=Count("likes", distinct=True),
                 comments_count=Count("comments", distinct=True),
             )
-            .order_by("-created_at")[:limit]
+            .order_by("display_order", "-created_at", "-id")[:limit]
         )
         data = AdminVideoSerializer(
             qs,
@@ -122,6 +124,77 @@ class AdminVideoListCreateView(APIView):
                 ).data,
             },
             status=status.HTTP_201_CREATED,
+        )
+
+
+class AdminVideoOrderView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        video_ids = request.data.get("video_ids")
+        if not isinstance(video_ids, list) or not video_ids:
+            return Response(
+                {"detail": "video_ids list required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        normalized_ids = []
+        seen = set()
+        for raw_id in video_ids:
+            try:
+                video_id = int(raw_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "video_ids must contain integer IDs"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if video_id in seen:
+                continue
+            normalized_ids.append(video_id)
+            seen.add(video_id)
+
+        existing_ids = set(
+            Video.objects.filter(pk__in=normalized_ids).values_list(
+                "id", flat=True
+            )
+        )
+        missing = [
+            video_id
+            for video_id in normalized_ids
+            if video_id not in existing_ids
+        ]
+        if missing:
+            return Response(
+                {"detail": f"unknown video ids: {missing}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            for order, video_id in enumerate(normalized_ids, start=1):
+                Video.objects.filter(pk=video_id).update(display_order=order)
+
+            tail_ids = list(
+                Video.objects.exclude(pk__in=normalized_ids)
+                .order_by("display_order", "-created_at", "-id")
+                .values_list("id", flat=True)
+            )
+            next_order = len(normalized_ids) + 1
+            for video_id in tail_ids:
+                Video.objects.filter(pk=video_id).update(
+                    display_order=next_order
+                )
+                next_order += 1
+
+        ordered_ids = list(
+            Video.objects.order_by(
+                "display_order",
+                "-created_at",
+                "-id",
+            ).values_list("id", flat=True)
+        )
+        return Response(
+            {"ok": True, "video_ids": ordered_ids},
+            status=status.HTTP_200_OK,
         )
 
 
@@ -249,3 +322,26 @@ class AdminHeroUploadView(APIView):
             {"ok": True, "id": hero.id},
             status=status.HTTP_201_CREATED,
         )
+
+
+class AdminHeroCurrentView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        hero = (
+            HeroVideo.objects.filter(is_active=True)
+            .order_by("-updated_at", "-id")
+            .first()
+        )
+        if not hero:
+            hero = HeroVideo.objects.order_by("-updated_at", "-id").first()
+        if not hero:
+            return Response(
+                {"detail": "hero not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        data = AdminHeroVideoSerializer(
+            hero,
+            context={"request": request},
+        ).data
+        return Response(data, status=status.HTTP_200_OK)

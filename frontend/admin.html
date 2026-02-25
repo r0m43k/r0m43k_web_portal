@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Video Admin</title>
-  <link rel="stylesheet" href="/css/main.css?v=20260224-1" />
+  <link rel="stylesheet" href="/css/main.css?v=20260225-3" />
 </head>
 <body class="admin-page">
   <header class="topbar">
@@ -67,12 +67,45 @@
     </section>
 
     <section class="admin__panel">
+      <h2 class="admin__title">Hero Media</h2>
+      <p class="admin__helper">
+        Upload image or video for the first screen. New upload replaces current hero.
+      </p>
+      <form id="heroUploadForm" class="admin__upload" enctype="multipart/form-data">
+        <input
+          class="admin__input"
+          name="title"
+          placeholder="Hero title (optional)"
+          maxlength="200"
+          autocomplete="off"
+        />
+        <input class="admin__file" type="file" name="file" accept="video/*,image/*" required />
+        <div class="admin__actions">
+          <button class="btn btn--primary" id="heroUploadBtn" type="submit">Upload Hero</button>
+        </div>
+      </form>
+      <div class="admin__helper" id="heroStatus">Loading hero media...</div>
+      <div class="admin__hero-preview" id="heroPreview"></div>
+    </section>
+
+    <section class="admin__panel">
+      <h2 class="admin__title">Carousel Order</h2>
+      <p class="admin__helper">Drag videos to change display order in the feed carousel.</p>
+      <div class="admin__order-list" id="orderList"></div>
+      <div class="admin__actions">
+        <button class="btn btn--primary" id="saveOrderBtn" type="button">Save Order</button>
+        <button class="btn btn--ghost" id="reloadOrderBtn" type="button">Reload</button>
+      </div>
+      <div class="admin__helper" id="orderStatus">Order is synced automatically after each upload.</div>
+    </section>
+
+    <section class="admin__panel">
       <h2 class="admin__title">Recent Videos</h2>
       <div class="admin__list admin__list--compact" id="recentList"></div>
     </section>
   </main>
 
-  <script src="/js/auth.js?v=20260224-1"></script>
-  <script src="/js/admin.js?v=20260224-1"></script>
+  <script src="/js/auth.js?v=20260225-3"></script>
+  <script src="/js/admin.js?v=20260225-3"></script>
 </body>
 </html>

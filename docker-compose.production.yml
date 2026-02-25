@@ -27,8 +27,8 @@ services:
       --workers 2
       --threads 4
       --worker-class gthread
-      --timeout 1800
-      --graceful-timeout 1800
+      --timeout 3600
+      --graceful-timeout 3600
       --access-logfile -
       --error-logfile -
       --log-level debug

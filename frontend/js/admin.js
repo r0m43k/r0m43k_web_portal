@@ -12,6 +12,14 @@ const AdminApp = (() => {
   const rawUrl = document.getElementById("rawUrl");
   const hlsUrl = document.getElementById("hlsUrl");
   const recentList = document.getElementById("recentList");
+  const orderList = document.getElementById("orderList");
+  const orderStatus = document.getElementById("orderStatus");
+  const saveOrderBtn = document.getElementById("saveOrderBtn");
+  const reloadOrderBtn = document.getElementById("reloadOrderBtn");
+  const heroForm = document.getElementById("heroUploadForm");
+  const heroUploadBtn = document.getElementById("heroUploadBtn");
+  const heroPreview = document.getElementById("heroPreview");
+  const heroStatus = document.getElementById("heroStatus");
   const logoutBtn = document.getElementById("logoutBtn");
   const adminUser = document.getElementById("adminUser");
 
@@ -19,6 +27,7 @@ const AdminApp = (() => {
   let pollTimer = null;
   let activeJobId = null;
   let activeUploadId = null;
+  let dragItem = null;
 
   function escapeHtml(value) {
     return String(value || "")
@@ -48,6 +57,44 @@ const AdminApp = (() => {
     if (textEl) textEl.textContent = message || `${safe}%`;
   }
 
+  function setUploadBusy(isBusy) {
+    if (uploadBtn) uploadBtn.disabled = isBusy;
+    if (cancelUploadBtn) cancelUploadBtn.hidden = !isBusy;
+    if (uploadForm) uploadForm.dataset.uploading = isBusy ? "1" : "0";
+  }
+
+  function isImageUrl(url) {
+    const clean = String(url || "").split("?")[0];
+    return /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(clean);
+  }
+
+  async function extractErrorText(res, fallback) {
+    let text = fallback || `HTTP ${res.status || 0}`;
+    try {
+      const payload = await res.json();
+      if (payload?.detail) text = `${text}: ${payload.detail}`;
+    } catch {}
+    return text;
+  }
+
+  async function apiFetch(url, opts = {}) {
+    if (Auth?.fetchWithAuth) {
+      return Auth.fetchWithAuth(
+        url,
+        {
+          cache: "no-store",
+          ...opts,
+        },
+        true
+      );
+    }
+    return fetch(url, {
+      credentials: "include",
+      cache: "no-store",
+      ...opts,
+    });
+  }
+
   function showResult(job) {
     if (!resultBox || !rawUrl || !hlsUrl) return;
     const file = job?.file_url || "";
@@ -59,10 +106,113 @@ const AdminApp = (() => {
     resultBox.hidden = false;
   }
 
-  function setUploadBusy(isBusy) {
-    if (uploadBtn) uploadBtn.disabled = isBusy;
-    if (cancelUploadBtn) cancelUploadBtn.hidden = !isBusy;
-    if (uploadForm) uploadForm.dataset.uploading = isBusy ? "1" : "0";
+  function renumberOrderList() {
+    if (!orderList) return;
+    const items = orderList.querySelectorAll(".admin-order-item");
+    items.forEach((item, idx) => {
+      const idxEl = item.querySelector(".admin-order-item__idx");
+      if (idxEl) idxEl.textContent = `#${idx + 1}`;
+    });
+  }
+
+  function getCurrentOrderIds() {
+    if (!orderList) return [];
+    return Array.from(orderList.querySelectorAll(".admin-order-item"))
+      .map((item) => Number(item.dataset.videoId))
+      .filter((value) => Number.isFinite(value) && value > 0);
+  }
+
+  function renderOrderList(items) {
+    if (!orderList) return;
+    const videos = Array.isArray(items) ? items : [];
+    if (!videos.length) {
+      orderList.innerHTML = "No videos yet";
+      return;
+    }
+    orderList.innerHTML = "";
+
+    for (const item of videos) {
+      const card = document.createElement("div");
+      card.className = "admin-order-item";
+      card.draggable = true;
+      card.dataset.videoId = String(item.id);
+      card.innerHTML = `
+        <div class="admin-order-item__grip" aria-hidden="true">⋮⋮</div>
+        <div>
+          <div class="admin-order-item__title">${escapeHtml(item.title || "Untitled video")}</div>
+          <div class="admin-order-item__meta">status: ${escapeHtml(item.status || "unknown")}</div>
+        </div>
+        <div class="admin-order-item__idx"></div>
+      `;
+
+      card.addEventListener("dragstart", () => {
+        dragItem = card;
+        card.classList.add("is-dragging");
+      });
+
+      card.addEventListener("dragend", () => {
+        card.classList.remove("is-dragging");
+        orderList
+          .querySelectorAll(".admin-order-item")
+          .forEach((el) => el.classList.remove("is-drop-target"));
+        dragItem = null;
+        renumberOrderList();
+      });
+
+      card.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (!dragItem || dragItem === card) return;
+        card.classList.add("is-drop-target");
+        const rect = card.getBoundingClientRect();
+        const insertAfter = e.clientY >= rect.top + rect.height / 2;
+        if (insertAfter) {
+          orderList.insertBefore(dragItem, card.nextSibling);
+        } else {
+          orderList.insertBefore(dragItem, card);
+        }
+      });
+
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("is-drop-target");
+      });
+
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        card.classList.remove("is-drop-target");
+      });
+
+      orderList.appendChild(card);
+    }
+
+    renumberOrderList();
+  }
+
+  function renderRecentList(items) {
+    if (!recentList) return;
+    if (!Array.isArray(items) || !items.length) {
+      recentList.innerHTML = "No videos yet";
+      return;
+    }
+    recentList.innerHTML = "";
+    for (const item of items) {
+      const el = document.createElement("div");
+      el.className = "admin-card admin-card--compact";
+      const fileUrl = item.file_url || "";
+      const hlsPlaylist = item.hls_url || "";
+      const safeTitle = escapeHtml(item.title || "Untitled video");
+      const safeStatus = escapeHtml(item.status || "unknown");
+      const safeOrder = Number(item.display_order || 0);
+      el.innerHTML = `
+        <div class="admin-card__meta">
+          <div class="admin-card__title">${safeTitle}</div>
+          <div class="admin-card__sub">order: ${safeOrder > 0 ? `#${safeOrder}` : "not set"}</div>
+          <div class="admin-card__sub">status: ${safeStatus}</div>
+          <div class="admin-card__sub">raw: ${fileUrl ? `<a href="${fileUrl}" target="_blank" rel="noopener">open</a>` : "missing"}</div>
+          <div class="admin-card__sub">hls: ${hlsPlaylist ? `<a href="${hlsPlaylist}" target="_blank" rel="noopener">open</a>` : "processing"}</div>
+        </div>
+      `;
+      recentList.appendChild(el);
+    }
   }
 
   async function ensureAdmin() {
@@ -90,46 +240,143 @@ const AdminApp = (() => {
     if (!recentList) return;
     recentList.innerHTML = "Loading...";
     try {
-      const res = await fetch("/api/admin/videos?limit=12", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error("load failed");
-      const items = await res.json();
-      if (!Array.isArray(items) || !items.length) {
-        recentList.innerHTML = "No videos yet";
+      const res = await apiFetch("/api/admin/videos/?limit=50");
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Unable to load recent videos");
+        recentList.innerHTML = message;
+        if (orderStatus) orderStatus.textContent = message;
         return;
       }
-      recentList.innerHTML = "";
-      for (const item of items) {
-        const el = document.createElement("div");
-        el.className = "admin-card admin-card--compact";
-        const fileUrl = item.file_url || "";
-        const hlsPlaylist = item.hls_url || "";
-        const safeTitle = escapeHtml(item.title || "Untitled video");
-        const safeStatus = escapeHtml(item.status || "unknown");
-        el.innerHTML = `
-          <div class="admin-card__meta">
-            <div class="admin-card__title">${safeTitle}</div>
-            <div class="admin-card__sub">status: ${safeStatus}</div>
-            <div class="admin-card__sub">raw: ${fileUrl ? `<a href="${fileUrl}" target="_blank" rel="noopener">open</a>` : "missing"}</div>
-            <div class="admin-card__sub">hls: ${hlsPlaylist ? `<a href="${hlsPlaylist}" target="_blank" rel="noopener">open</a>` : "processing"}</div>
-          </div>
-        `;
-        recentList.appendChild(el);
+      const items = await res.json();
+      renderRecentList(items);
+      renderOrderList(items);
+      if (orderStatus) {
+        orderStatus.textContent = "Drag cards, then click Save Order.";
       }
-    } catch {
-      recentList.innerHTML = "Unable to load recent videos";
+    } catch (err) {
+      const message = err?.message || "Unable to load recent videos";
+      recentList.innerHTML = message;
+      if (orderStatus) orderStatus.textContent = message;
+    }
+  }
+
+  async function saveVideoOrder() {
+    if (!saveOrderBtn) return;
+    const ids = getCurrentOrderIds();
+    if (!ids.length) {
+      if (orderStatus) orderStatus.textContent = "No videos to sort.";
+      return;
+    }
+    saveOrderBtn.disabled = true;
+    if (orderStatus) orderStatus.textContent = "Saving order...";
+    try {
+      const csrf = await Auth.ensureCsrf();
+      const res = await apiFetch("/api/admin/videos/order/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrf ? { "X-CSRFToken": csrf } : {}),
+        },
+        body: JSON.stringify({ video_ids: ids }),
+      });
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Failed to save order");
+        if (orderStatus) orderStatus.textContent = message;
+        return;
+      }
+      if (orderStatus) orderStatus.textContent = "Order saved.";
+      await loadRecentVideos();
+    } catch (err) {
+      if (orderStatus) {
+        orderStatus.textContent = err?.message || "Failed to save order";
+      }
+    } finally {
+      saveOrderBtn.disabled = false;
+    }
+  }
+
+  function renderHeroPreview(data) {
+    if (!heroPreview) return;
+    const fileUrl = data?.file_url || "";
+    const hlsUrl = data?.hls_url || "";
+    if (!fileUrl) {
+      heroPreview.innerHTML = "Hero media not set";
+      return;
+    }
+    if (isImageUrl(fileUrl)) {
+      heroPreview.innerHTML = `<img class="admin__hero-media" src="${fileUrl}" alt="Hero preview" />`;
+      return;
+    }
+    const src = hlsUrl || fileUrl;
+    heroPreview.innerHTML = `
+      <video class="admin__hero-media" src="${src}" controls muted playsinline preload="metadata"></video>
+    `;
+  }
+
+  async function loadHeroMedia() {
+    if (heroStatus) heroStatus.textContent = "Loading hero media...";
+    try {
+      const res = await apiFetch("/api/admin/hero/current/");
+      if (res.status === 404) {
+        if (heroStatus) heroStatus.textContent = "Hero media is not uploaded yet.";
+        if (heroPreview) heroPreview.innerHTML = "No hero media";
+        return;
+      }
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Unable to load hero media");
+        if (heroStatus) heroStatus.textContent = message;
+        if (heroPreview) heroPreview.innerHTML = "Failed to load";
+        return;
+      }
+      const hero = await res.json();
+      const label = hero?.title ? `Current hero: ${hero.title}` : "Current hero media is active.";
+      if (heroStatus) heroStatus.textContent = label;
+      renderHeroPreview(hero);
+    } catch (err) {
+      if (heroStatus) heroStatus.textContent = err?.message || "Unable to load hero media";
+      if (heroPreview) heroPreview.innerHTML = "Failed to load";
+    }
+  }
+
+  async function handleHeroUploadSubmit(e) {
+    e.preventDefault();
+    if (!heroForm || !heroUploadBtn) return;
+    const fileInput = heroForm.querySelector("input[type='file']");
+    if (!fileInput || !fileInput.files || fileInput.files.length !== 1) {
+      if (heroStatus) heroStatus.textContent = "Select one image or video file.";
+      return;
+    }
+    heroUploadBtn.disabled = true;
+    if (heroStatus) heroStatus.textContent = "Uploading hero media...";
+    try {
+      if (Auth?.refreshAccess) {
+        await Auth.refreshAccess();
+      }
+      const csrf = await Auth.ensureCsrf();
+      const res = await apiFetch("/api/admin/hero/", {
+        method: "POST",
+        body: new FormData(heroForm),
+        headers: csrf ? { "X-CSRFToken": csrf } : {},
+      });
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Hero upload failed");
+        if (heroStatus) heroStatus.textContent = message;
+        return;
+      }
+      heroForm.reset();
+      if (heroStatus) heroStatus.textContent = "Hero upload accepted. Processing started.";
+      await loadHeroMedia();
+    } catch (err) {
+      if (heroStatus) heroStatus.textContent = err?.message || "Hero upload failed";
+    } finally {
+      heroUploadBtn.disabled = false;
     }
   }
 
   async function refreshUploadStatus() {
     if (!activeUploadId) return;
     try {
-      const res = await fetch(`/api/admin/uploads/${activeUploadId}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const res = await apiFetch(`/api/admin/uploads/${activeUploadId}/`);
       if (!res.ok) return;
       const data = await res.json();
       const percent = Number(data.progress || 0);
@@ -152,10 +399,7 @@ const AdminApp = (() => {
   async function pollJobStatus() {
     if (!activeJobId) return;
     try {
-      const res = await fetch(`/api/admin/jobs/${activeJobId}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const res = await apiFetch(`/api/admin/jobs/${activeJobId}/`);
       if (!res.ok) throw new Error("job load failed");
       const job = await res.json();
       const pct = Number(job.progress || 0);
@@ -176,12 +420,7 @@ const AdminApp = (() => {
         stopJobPolling();
         if (cancelJobBtn) cancelJobBtn.hidden = true;
         if (retryJobBtn) retryJobBtn.hidden = false;
-        setProgress(
-          jobBar,
-          jobText,
-          pct,
-          `failed: ${job.error || "processing error"}`
-        );
+        setProgress(jobBar, jobText, pct, `failed: ${job.error || "processing error"}`);
         await loadRecentVideos();
         return;
       }
@@ -225,6 +464,15 @@ const AdminApp = (() => {
     setProgress(uploadBar, uploadText, 0, "Upload: 0%");
     setProgress(jobBar, jobText, 0, "Queued");
 
+    if (Auth?.refreshAccess) {
+      const refreshed = await Auth.refreshAccess();
+      if (!refreshed) {
+        setProgress(uploadBar, uploadText, 0, "Session expired. Please login again.");
+        location.href = "/login.html";
+        return;
+      }
+    }
+
     const csrf = await Auth.ensureCsrf();
     const xhr = new XMLHttpRequest();
     activeXhr = xhr;
@@ -232,8 +480,9 @@ const AdminApp = (() => {
     if (retryJobBtn) retryJobBtn.hidden = true;
     if (cancelJobBtn) cancelJobBtn.hidden = true;
 
-    xhr.open("POST", "/api/admin/videos");
+    xhr.open("POST", "/api/admin/videos/");
     xhr.withCredentials = true;
+    xhr.timeout = 3600 * 1000;
     if (csrf) xhr.setRequestHeader("X-CSRFToken", csrf);
 
     xhr.upload.addEventListener("progress", (evt) => {
@@ -286,8 +535,14 @@ const AdminApp = (() => {
         uploadBar,
         uploadText,
         0,
-        `Network error during upload (status ${st})`
+        `Network error during upload (status ${st}). Connection was interrupted (proxy timeout, auth, or backend restart).`
       );
+    });
+
+    xhr.addEventListener("timeout", () => {
+      setUploadBusy(false);
+      activeXhr = null;
+      setProgress(uploadBar, uploadText, 0, "Upload timeout reached (3600s).");
     });
 
     xhr.addEventListener("abort", () => {
@@ -311,9 +566,8 @@ const AdminApp = (() => {
     cancelJobBtn.addEventListener("click", async () => {
       if (!activeJobId) return;
       const csrf = await Auth.ensureCsrf();
-      await fetch(`/api/admin/jobs/${activeJobId}/cancel`, {
+      await apiFetch(`/api/admin/jobs/${activeJobId}/cancel/`, {
         method: "POST",
-        credentials: "include",
         headers: csrf ? { "X-CSRFToken": csrf } : {},
       });
       await pollJobStatus();
@@ -325,9 +579,8 @@ const AdminApp = (() => {
     retryJobBtn.addEventListener("click", async () => {
       if (!activeJobId) return;
       const csrf = await Auth.ensureCsrf();
-      const res = await fetch(`/api/admin/jobs/${activeJobId}/retry`, {
+      const res = await apiFetch(`/api/admin/jobs/${activeJobId}/retry/`, {
         method: "POST",
-        credentials: "include",
         headers: csrf ? { "X-CSRFToken": csrf } : {},
       });
       if (!res.ok) return;
@@ -337,6 +590,22 @@ const AdminApp = (() => {
       setProgress(jobBar, jobText, 0, "queued");
       startJobPolling(activeJobId);
     });
+  }
+
+  function wireOrderActions() {
+    if (saveOrderBtn) {
+      saveOrderBtn.addEventListener("click", saveVideoOrder);
+    }
+    if (reloadOrderBtn) {
+      reloadOrderBtn.addEventListener("click", () => {
+        loadRecentVideos();
+      });
+    }
+  }
+
+  function wireHeroUpload() {
+    if (!heroForm) return;
+    heroForm.addEventListener("submit", handleHeroUploadSubmit);
   }
 
   function wireLogout() {
@@ -354,10 +623,12 @@ const AdminApp = (() => {
     wireUploadCancel();
     wireJobCancel();
     wireJobRetry();
+    wireOrderActions();
+    wireHeroUpload();
     if (uploadForm) {
       uploadForm.addEventListener("submit", handleUploadSubmit);
     }
-    await loadRecentVideos();
+    await Promise.all([loadHeroMedia(), loadRecentVideos()]);
   }
 
   return { boot };

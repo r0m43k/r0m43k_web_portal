@@ -25,6 +25,7 @@ class VideoSerializer(serializers.ModelSerializer):
             "file_url",
             "hls_url",
             "status",
+            "display_order",
             "created_at",
             "published_at",
             "likes_count",
@@ -92,6 +93,36 @@ class HeroVideoSerializer(serializers.ModelSerializer):
         return hls_manifest_url(request, "hero", obj.pk)
 
 
+class AdminHeroVideoSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    hls_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HeroVideo
+        fields = [
+            "id",
+            "title",
+            "file_url",
+            "hls_url",
+            "is_active",
+            "updated_at",
+        ]
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return None
+        return _abs_url(self.context.get("request"), obj.file.url)
+
+    def get_hls_url(self, obj):
+        if not obj.pk:
+            return None
+        manifest = hls_manifest_path("hero", obj.pk)
+        if not manifest.exists():
+            return None
+        request = self.context.get("request")
+        return hls_manifest_url(request, "hero", obj.pk)
+
+
 class VideoCommentSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
 
@@ -118,6 +149,7 @@ class AdminVideoSerializer(serializers.ModelSerializer):
             "file_url",
             "hls_url",
             "status",
+            "display_order",
             "reject_reason",
             "created_at",
             "published_at",

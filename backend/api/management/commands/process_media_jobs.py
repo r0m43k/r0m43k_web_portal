@@ -23,7 +23,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--sleep",
             type=int,
-            default=5,
+            default=2,
             help="Sleep seconds when no jobs are available.",
         )
 

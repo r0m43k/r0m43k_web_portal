@@ -39,7 +39,12 @@ class VideoListView(generics.ListCreateAPIView):
                 liked_by_me=Value(False, output_field=BooleanField())
             )
 
-        return qs
+        return qs.order_by(
+            "display_order",
+            "-published_at",
+            "-created_at",
+            "-id",
+        )
 
     def get_serializer_class(self):
         if self.request.method == "POST":

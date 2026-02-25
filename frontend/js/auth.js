@@ -1,4 +1,6 @@
 const Auth = (() => {
+  let refreshInFlight = null;
+
   function getCookie(name) {
     const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
     return match ? decodeURIComponent(match[2]) : null;
@@ -13,6 +15,39 @@ const Auth = (() => {
     return getCookie("csrftoken");
   }
 
+  async function refreshAccess() {
+    if (refreshInFlight) return refreshInFlight;
+    refreshInFlight = (async () => {
+      try {
+        const csrf = await ensureCsrf();
+        const res = await fetch("/api/auth/refresh/", {
+          method: "POST",
+          credentials: "include",
+          headers: csrf ? { "X-CSRFToken": csrf } : {},
+        });
+        return res.ok;
+      } catch {
+        return false;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+    return refreshInFlight;
+  }
+
+  async function fetchWithAuth(url, opts = {}, allowRefresh = true) {
+    const request = {
+      credentials: "include",
+      ...opts,
+    };
+    let res = await fetch(url, request);
+    if (res.status !== 401 || !allowRefresh) return res;
+    const refreshed = await refreshAccess();
+    if (!refreshed) return res;
+    res = await fetch(url, request);
+    return res;
+  }
+
   async function json(url, opts = {}) {
     const method = (opts.method || "GET").toUpperCase();
     const needsCsrf = !["GET", "HEAD", "OPTIONS", "TRACE"].includes(method);
@@ -22,17 +57,26 @@ const Auth = (() => {
       ...(csrf ? { "X-CSRFToken": csrf } : {}),
       ...(opts.headers || {}),
     };
-    const res = await fetch(url, {
-      credentials: "include",
-      headers,
-      ...opts,
-    });
+    const res = await fetchWithAuth(
+      url,
+      {
+        ...opts,
+        headers,
+      },
+      true
+    );
     return res;
   }
 
   async function me() {
     try {
-      const res = await fetch("/api/auth/me/", { credentials: "include" });
+      const res = await fetchWithAuth(
+        "/api/auth/me/",
+        {
+          cache: "no-store",
+        },
+        true
+      );
       if (!res.ok) return null;
       return await res.json();
     } catch {
@@ -121,7 +165,17 @@ const Auth = (() => {
     }
   }
 
-  const api = { me, login, register, logout, wireTopbar, ensureCsrf, getCookie };
+  const api = {
+    me,
+    login,
+    register,
+    logout,
+    wireTopbar,
+    ensureCsrf,
+    getCookie,
+    refreshAccess,
+    fetchWithAuth,
+  };
 
   document.addEventListener("DOMContentLoaded", () => {
     api.wireTopbar();
