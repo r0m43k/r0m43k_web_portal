@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Регистрация</title>
-  <link rel="stylesheet" href="/css/main.css?v=20260204" />
+  <link rel="stylesheet" href="/css/main.css?v=20260225-2" />
 </head>
 <body class="auth-page">
 
@@ -48,7 +48,7 @@
     </div>
   </div>
 
-  <script src="/js/auth.js?v=20260204"></script>
+  <script src="/js/auth.js?v=20260225-2"></script>
   <script>
     document.getElementById("regForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -60,6 +60,10 @@
       const email = (fd.get("email") || "").trim();
       const password = fd.get("password") || "";
       const password2 = fd.get("password2") || "";
+
+      passTouched = true;
+      pass2Touched = true;
+      updateHints();
 
       const issues = [];
       if (password.length < 8) issues.push("Пароль должен быть не короче 8 символов.");
@@ -105,24 +109,82 @@
     const passInput = document.querySelector('input[name="password"]');
     const pass2Input = document.querySelector('input[name="password2"]');
     const hints = document.getElementById("passHints");
+    const lenHint = hints?.querySelector('[data-rule="len"]');
+    const matchHint = hints?.querySelector('[data-rule="match"]');
+    const LEN_TEXT = "\u041c\u0438\u043d\u0438\u043c\u0443\u043c 8 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432";
+    const MATCH_OK_TEXT = "\u041f\u0430\u0440\u043e\u043b\u0438 \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u044e\u0442";
+    const MATCH_ERR_TEXT = "\u041f\u0430\u0440\u043e\u043b\u0438 \u043d\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u044e\u0442";
+    let passTouched = false;
+    let pass2Touched = false;
+
+    function setHintState(el, options) {
+      if (!el) return;
+      const show = Boolean(options?.show);
+      const ok = Boolean(options?.ok);
+      const error = Boolean(options?.error);
+      el.classList.toggle("is-visible", show);
+      el.classList.toggle("is-ok", show && ok);
+      el.classList.toggle("is-error", show && error);
+      if (show && options?.text) {
+        el.textContent = options.text;
+      }
+    }
 
     function updateHints() {
       if (!hints) return;
       const pass = passInput?.value || "";
       const pass2 = pass2Input?.value || "";
-      const rules = {
-        len: pass.length >= 8,
-        match: pass.length > 0 && pass === pass2,
-      };
-      hints.querySelectorAll(".auth-hint").forEach((el) => {
-        const key = el.getAttribute("data-rule");
-        const ok = rules[key];
-        el.classList.toggle("is-ok", Boolean(ok));
-      });
+      const lenOk = pass.length >= 8;
+      const matchOk = pass.length > 0 && pass === pass2;
+
+      if (passTouched) {
+        if (lenOk) {
+          setHintState(lenHint, { show: false });
+        } else {
+          setHintState(lenHint, {
+            show: true,
+            error: true,
+            text: LEN_TEXT,
+          });
+        }
+      } else {
+        setHintState(lenHint, { show: false });
+      }
+
+      if (pass2Touched) {
+        if (matchOk) {
+          setHintState(matchHint, {
+            show: true,
+            ok: true,
+            text: MATCH_OK_TEXT,
+          });
+        } else {
+          setHintState(matchHint, {
+            show: true,
+            error: true,
+            text: MATCH_ERR_TEXT,
+          });
+        }
+      } else {
+        setHintState(matchHint, { show: false });
+      }
     }
 
-    if (passInput) passInput.addEventListener("input", updateHints);
-    if (pass2Input) pass2Input.addEventListener("input", updateHints);
+    if (passInput) {
+      passInput.addEventListener("focus", () => {
+        passTouched = true;
+        updateHints();
+      });
+      passInput.addEventListener("input", updateHints);
+    }
+
+    if (pass2Input) {
+      pass2Input.addEventListener("focus", () => {
+        pass2Touched = true;
+        updateHints();
+      });
+      pass2Input.addEventListener("input", updateHints);
+    }
 
     if (emailInput) {
       emailInput.addEventListener("input", () => {

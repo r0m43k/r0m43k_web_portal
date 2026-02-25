@@ -163,6 +163,7 @@ const FeedApp = (() => {
     const bar = loaderEl.querySelector(".video-loader__bar");
     const text = loaderEl.querySelector(".video-loader__text");
     const post = videoEl.closest(".post");
+    const shouldDimPost = !document.body.classList.contains("feed-page");
     let lastPercent = 0;
     let settleTimer = null;
 
@@ -212,11 +213,11 @@ const FeedApp = (() => {
 
     const hide = () => {
       loaderEl.classList.add("is-hidden");
-      if (post) post.classList.remove("is-loading");
+      if (shouldDimPost && post) post.classList.remove("is-loading");
     };
     const show = () => {
       loaderEl.classList.remove("is-hidden");
-      if (post) post.classList.add("is-loading");
+      if (shouldDimPost && post) post.classList.add("is-loading");
     };
     const showError = () => {
       if (text) text.textContent = "Ошибка загрузки видео";
@@ -366,12 +367,6 @@ const FeedApp = (() => {
     if (videoEl.dataset.loopBound === "1") return;
     videoEl.dataset.loopBound = "1";
     videoEl.loop = true;
-    videoEl.addEventListener("ended", () => {
-      try {
-        videoEl.currentTime = 0;
-      } catch {}
-      videoEl.play().catch(() => {});
-    });
   }
 
   function attachStreamSource(videoEl, src, hlsUrl) {

@@ -46,8 +46,15 @@
   margin-bottom: 6px;
 }
 .auth-hint{
+  display: none;
   font-size: 12px;
   color: var(--muted);
+}
+.auth-hint.is-visible{
+  display: block;
+}
+.auth-hint.is-error{
+  color: #ffb4b4;
 }
 .auth-hint.is-ok{
   color: #b8f3c6;

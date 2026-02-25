@@ -67,17 +67,17 @@
   height:100%;
   object-fit: cover;
   background:#000;
-  filter: brightness(0.85);
-  transition: filter .2s ease;
+  filter: none;
+  transition: none;
 }
 .post.is-loading .post__video{
-  filter: brightness(0.6);
+  filter: none;
 }
 .post--hero .post__video{
-  filter: brightness(0.55);
+  filter: none;
 }
 .post--hero.is-loading .post__video{
-  filter: brightness(0.25);
+  filter: none;
 }
 
 .post__ui{
