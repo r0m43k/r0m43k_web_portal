@@ -437,8 +437,13 @@ const FeedApp = (() => {
 
     if (hlsUrl && window.Hls && window.Hls.isSupported()) {
       const hls = new window.Hls({
-        maxBufferLength: 30,
-        backBufferLength: 30,
+        autoStartLoad: true,
+        startLevel: 0,
+        maxBufferLength: 12,
+        maxMaxBufferLength: 20,
+        backBufferLength: 8,
+        capLevelToPlayerSize: true,
+        abrEwmaDefaultEstimate: 800000,
       });
       videoEl.__hls = hls;
       const updateFromLevelIndex = (idx) => {
@@ -788,7 +793,7 @@ const FeedApp = (() => {
 
   async function boot() {
     currentUser = await Auth.me();
-    await loadHeroVideo();
+    const heroLoadPromise = loadHeroVideo().catch(() => {});
 
     setupActiveAutoplay();
     setupInfiniteScroll();
@@ -796,9 +801,8 @@ const FeedApp = (() => {
 
     // IMPORTANT: мы можем начать подгрузку сразу, но это не мешает —
     // hero остаётся первым экраном, а посты просто появятся ниже.
-    try {
-      await loadNextPage();
-    } catch {}
+    const firstPagePromise = loadNextPage().catch(() => {});
+    await Promise.all([heroLoadPromise, firstPagePromise]);
 
     // Кнопка "смотреть" = проскроллить к первому посту
     if (startBtn) startBtn.addEventListener("click", scrollToFirstRealPost);
