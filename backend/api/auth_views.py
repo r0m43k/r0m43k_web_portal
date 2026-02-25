@@ -1,7 +1,12 @@
 import re
 
 from django.conf import settings
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import (
+    authenticate,
+    get_user_model,
+    login as django_login,
+    logout as django_logout,
+)
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
@@ -209,6 +214,7 @@ class LoginView(APIView):
             settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
         )
 
+        django_login(request, user)
         resp = Response({"ok": True})
 
         _set_cookie(
@@ -303,6 +309,7 @@ class LogoutView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        django_logout(request)
         refresh_str = request.COOKIES.get(COOKIE_REFRESH)
         if refresh_str:
             try:

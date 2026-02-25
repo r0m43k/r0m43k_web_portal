@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -108,3 +109,44 @@ class HeroFallbackTests(TestCase):
         self.assertEqual(res.status_code, 200)
         payload = res.json()
         self.assertEqual(payload.get("title"), "Archived hero")
+
+
+class AuthBridgeTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_user(
+            username="rootadmin",
+            email="rootadmin@example.com",
+            password="pass12345",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client = Client()
+
+    def test_api_login_creates_admin_session(self):
+        res = self.client.post(
+            "/api/auth/login/",
+            data={"login": "rootadmin", "password": "pass12345"},
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+
+        me_res = self.client.get("/api/auth/me/")
+        self.assertEqual(me_res.status_code, 200)
+
+        admin_res = self.client.get("/admin/")
+        self.assertEqual(admin_res.status_code, 200)
+
+    def test_api_logout_also_logs_out_admin_session(self):
+        login_res = self.client.post(
+            "/api/auth/login/",
+            data={"login": "rootadmin", "password": "pass12345"},
+            content_type="application/json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+
+        logout_res = self.client.post("/api/auth/logout/")
+        self.assertEqual(logout_res.status_code, 200)
+
+        admin_res = self.client.get("/admin/")
+        self.assertEqual(admin_res.status_code, 302)
