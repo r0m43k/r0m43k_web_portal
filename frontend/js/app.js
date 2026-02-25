@@ -5,6 +5,7 @@ const FeedApp = (() => {
   const heroPost = document.getElementById("heroPost");
   const startBtn = document.getElementById("startBtn");
   const heroLoader = document.getElementById("heroLoader");
+  const heroQuality = document.getElementById("heroQuality");
   const commentsModal = document.getElementById("commentsModal");
   const commentsList = document.getElementById("commentsList");
   const commentForm = document.getElementById("commentForm");
@@ -369,7 +370,47 @@ const FeedApp = (() => {
     videoEl.loop = true;
   }
 
-  function attachStreamSource(videoEl, src, hlsUrl) {
+  function qualityLabelFromHeight(height) {
+    const h = Number(height || 0);
+    if (!Number.isFinite(h) || h <= 0) return "авто";
+    if (h >= 2160) return "4K";
+    if (h >= 1440) return "1440p";
+    if (h >= 1080) return "1080p";
+    if (h >= 720) return "720p";
+    if (h >= 540) return "540p";
+    if (h >= 480) return "480p";
+    if (h >= 360) return "360p";
+    return `${Math.round(h)}p`;
+  }
+
+  function setQualityBadge(qualityEl, label) {
+    if (!qualityEl) return;
+    const value = (label || "авто").toString().trim() || "авто";
+    qualityEl.textContent = `Качество: ${value}`;
+  }
+
+  function bindQualityTracking(videoEl, qualityEl) {
+    if (!videoEl || !qualityEl) {
+      return { updateFromVideo: () => {} };
+    }
+    setQualityBadge(qualityEl, "авто");
+    if (typeof videoEl.__qualityUpdater !== "function") {
+      const updateFromVideo = () => {
+        setQualityBadge(
+          qualityEl,
+          qualityLabelFromHeight(videoEl.videoHeight)
+        );
+      };
+      videoEl.__qualityUpdater = updateFromVideo;
+      videoEl.addEventListener("loadedmetadata", updateFromVideo);
+      videoEl.addEventListener("canplay", updateFromVideo);
+      videoEl.addEventListener("playing", updateFromVideo);
+      videoEl.addEventListener("resize", updateFromVideo);
+    }
+    return { updateFromVideo: videoEl.__qualityUpdater };
+  }
+
+  function attachStreamSource(videoEl, src, hlsUrl, qualityEl) {
     if (!videoEl) return;
     if (videoEl.dataset.loaded === "1") return;
     if (!src && !hlsUrl) return;
@@ -377,6 +418,7 @@ const FeedApp = (() => {
     videoEl.dataset.loaded = "1";
     videoEl.preload = "metadata";
     ensureLoopPlayback(videoEl);
+    const { updateFromVideo } = bindQualityTracking(videoEl, qualityEl);
 
     const fallbackToMp4 = () => {
       if (!src) return;
@@ -389,6 +431,7 @@ const FeedApp = (() => {
       videoEl.removeAttribute("src");
       videoEl.src = src;
       videoEl.load();
+      videoEl.addEventListener("loadedmetadata", updateFromVideo, { once: true });
       videoEl.play().catch(() => {});
     };
 
@@ -398,6 +441,27 @@ const FeedApp = (() => {
         backBufferLength: 30,
       });
       videoEl.__hls = hls;
+      const updateFromLevelIndex = (idx) => {
+        const level = hls.levels?.[idx];
+        if (!level) return;
+        setQualityBadge(qualityEl, qualityLabelFromHeight(level.height));
+      };
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        const idx = hls.currentLevel >= 0 ? hls.currentLevel : hls.loadLevel;
+        if (Number.isFinite(idx) && idx >= 0) {
+          updateFromLevelIndex(idx);
+          return;
+        }
+        updateFromVideo();
+      });
+      hls.on(window.Hls.Events.LEVEL_SWITCHED, (_evt, data) => {
+        const idx = Number(data?.level);
+        if (Number.isFinite(idx) && idx >= 0) {
+          updateFromLevelIndex(idx);
+          return;
+        }
+        updateFromVideo();
+      });
       hls.on(window.Hls.Events.ERROR, (_evt, data) => {
         if (data?.fatal) fallbackToMp4();
       });
@@ -414,17 +478,20 @@ const FeedApp = (() => {
         { once: true }
       );
       videoEl.load();
+      videoEl.addEventListener("loadedmetadata", updateFromVideo, { once: true });
       return;
     }
 
     if (src) {
       videoEl.src = src;
       videoEl.load();
+      videoEl.addEventListener("loadedmetadata", updateFromVideo, { once: true });
     }
   }
 
   async function loadHeroVideo() {
     if (!heroVideo) return;
+    setQualityBadge(heroQuality, "авто");
 
     try {
       const res = await fetch("/api/hero/", { credentials: "include" });
@@ -432,6 +499,7 @@ const FeedApp = (() => {
         heroVideo.removeAttribute("src");
         heroVideo.removeAttribute("poster");
         if (heroLoader) heroLoader.classList.add("is-hidden");
+        if (heroQuality) heroQuality.hidden = true;
         heroPost?.classList.add("is-empty");
         return;
       }
@@ -443,6 +511,7 @@ const FeedApp = (() => {
         heroVideo.removeAttribute("src");
         heroVideo.removeAttribute("poster");
         if (heroLoader) heroLoader.classList.add("is-hidden");
+        if (heroQuality) heroQuality.hidden = true;
         heroPost?.classList.add("is-empty");
         return;
       }
@@ -454,10 +523,12 @@ const FeedApp = (() => {
         heroVideo.poster = url;
         heroVideo.load();
         if (heroLoader) heroLoader.classList.add("is-hidden");
+        if (heroQuality) heroQuality.hidden = true;
         heroPost?.classList.remove("is-empty");
         if (heroPost) heroPost.classList.add("is-image");
         return;
       }
+      if (heroQuality) heroQuality.hidden = false;
 
       heroVideo.loop = true;
       heroVideo.muted = true;
@@ -472,7 +543,7 @@ const FeedApp = (() => {
       heroVideo.removeAttribute("src");
       heroPost?.classList.remove("is-empty");
 
-      attachStreamSource(heroVideo, url, hlsUrl);
+      attachStreamSource(heroVideo, url, hlsUrl, heroQuality);
       heroVideo.play().catch(() => {});
     } catch {}
   }
@@ -488,8 +559,8 @@ const FeedApp = (() => {
       .replaceAll("'", "&#039;");
   }
 
-  function ensureVideoSource(videoEl, src, hlsUrl) {
-    attachStreamSource(videoEl, src, hlsUrl);
+  function ensureVideoSource(videoEl, src, hlsUrl, qualityEl) {
+    attachStreamSource(videoEl, src, hlsUrl, qualityEl);
   }
 
   function createPost(v) {
@@ -525,6 +596,7 @@ const FeedApp = (() => {
             <div class="video-loader__bar" style="width: 0%"></div>
             <div class="video-loader__text">Загрузка видео 0%</div>
           </div>
+          <div class="post__quality" data-role="quality">Качество: авто</div>
         </div>
 
         <div class="post__actions">
@@ -676,7 +748,8 @@ const FeedApp = (() => {
 
       const src = post.dataset.src;
       const hlsUrl = post.dataset.hls;
-      ensureVideoSource(video, src, hlsUrl);
+      const qualityEl = post.querySelector('[data-role="quality"]');
+      ensureVideoSource(video, src, hlsUrl, qualityEl);
 
       video.play().catch(() => {});
 

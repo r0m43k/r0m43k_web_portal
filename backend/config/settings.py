@@ -20,12 +20,24 @@ CSRF_TRUSTED_ORIGINS = os.getenv(
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 FILE_UPLOAD_HANDLERS = [
     "django.core.files.uploadhandler.TemporaryFileUploadHandler",
 ]
 FILE_UPLOAD_MAX_MEMORY_SIZE = None
 DATA_UPLOAD_MAX_MEMORY_SIZE = None
+_file_upload_temp_dir = os.getenv("FILE_UPLOAD_TEMP_DIR")
+if _file_upload_temp_dir:
+    FILE_UPLOAD_TEMP_DIR = _file_upload_temp_dir
+else:
+    FILE_UPLOAD_TEMP_DIR = str(MEDIA_ROOT / "_tmp_uploads")
+try:
+    os.makedirs(FILE_UPLOAD_TEMP_DIR, exist_ok=True)
+except OSError:
+    # Keep startup resilient even if temp dir cannot be created at import time.
+    pass
 
 DATABASES = {
     "default": {
@@ -101,9 +113,6 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
-
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
 
 if os.getenv("EMAIL_HOST"):
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

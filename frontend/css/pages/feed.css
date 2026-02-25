@@ -169,6 +169,29 @@
   display: none !important;
 }
 
+.post__quality{
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.82);
+}
+.post__quality::before{
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(117,255,170,.95);
+  box-shadow: 0 0 0 3px rgba(117,255,170,.18);
+}
+.post--hero .post__quality{
+  margin-top: 12px;
+  justify-content: center;
+}
+
 .seek-indicator{
   position: absolute;
   inset: 0;
