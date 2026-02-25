@@ -1,7 +1,11 @@
 .admin-page {
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: auto;
+  min-height: 100dvh;
+  -webkit-overflow-scrolling: touch;
   background: var(--admin-bg);
   color: var(--fg);
-  min-height: 100vh;
   padding-top: 64px;
 }
 
