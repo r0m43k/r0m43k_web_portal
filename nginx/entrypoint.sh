@@ -15,4 +15,14 @@ else
   cp -f /etc/nginx/confs/default.http.conf "$CONF_DST"
 fi
 
+(
+  while :; do
+    sleep 6h
+    if [ -f "$CERT" ]; then
+      cp -f /etc/nginx/confs/default.https.conf "$CONF_DST"
+      nginx -s reload || true
+    fi
+  done
+) &
+
 exec nginx -g "daemon off;"

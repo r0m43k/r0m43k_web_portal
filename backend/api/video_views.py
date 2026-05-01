@@ -14,6 +14,15 @@ from .serializers import (
 )
 
 
+class IsCommentOwnerOrAdmin(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return (
+            obj.user_id == request.user.id
+            or request.user.is_staff
+            or request.user.is_superuser
+        )
+
+
 class VideoListView(generics.ListCreateAPIView):
     def get_queryset(self):
         qs = Video.objects.all()
@@ -113,7 +122,9 @@ class VideoCommentListCreateView(generics.ListCreateAPIView):
     serializer_class = VideoCommentSerializer
 
     def get_queryset(self):
-        return VideoComment.objects.filter(video_id=self.kwargs["video_id"])
+        return VideoComment.objects.select_related("user").filter(
+            video_id=self.kwargs["video_id"]
+        )
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -123,6 +134,12 @@ class VideoCommentListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         video = get_object_or_404(Video, pk=self.kwargs["video_id"])
         serializer.save(user=self.request.user, video=video)
+
+
+class VideoCommentDetailView(generics.DestroyAPIView):
+    serializer_class = VideoCommentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsCommentOwnerOrAdmin]
+    queryset = VideoComment.objects.select_related("user", "video")
 
 
 class VideoLikeToggleView(APIView):

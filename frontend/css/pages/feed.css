@@ -285,9 +285,32 @@
   border-radius: 12px;
   background: rgba(255,255,255,.04);
 }
+.comment__head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+}
 .comment__user{ font-weight: 700; font-size: 12px; }
 .comment__text{ margin-top: 4px; font-size: 13px; }
 .comment__time{ margin-top: 6px; font-size: 11px; color: rgba(255,255,255,.6); }
+.comment__delete{
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.82);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+.comment__delete:hover{
+  background: rgba(255,255,255,.12);
+}
+.comment__delete:disabled{
+  cursor: default;
+  opacity: .55;
+}
 .modal__footer{
   padding: 12px 14px 14px;
   border-top: 1px solid rgba(255,255,255,.08);

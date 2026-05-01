@@ -155,10 +155,38 @@ class AdminHeroVideoSerializer(serializers.ModelSerializer):
 
 class VideoCommentSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
 
     class Meta:
         model = VideoComment
-        fields = ["id", "user", "text", "created_at"]
+        fields = ["id", "user", "text", "created_at", "can_delete"]
+
+    def get_user(self, obj):
+        return obj.user.first_name or obj.user.username
+
+    def get_can_delete(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        return obj.user_id == user.id or user.is_staff or user.is_superuser
+
+
+class AdminVideoCommentSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    video_title = serializers.CharField(source="video.title", read_only=True)
+    video_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = VideoComment
+        fields = [
+            "id",
+            "video_id",
+            "video_title",
+            "user",
+            "text",
+            "created_at",
+        ]
 
     def get_user(self, obj):
         return obj.user.first_name or obj.user.username

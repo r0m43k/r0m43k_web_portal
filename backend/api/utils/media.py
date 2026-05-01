@@ -168,12 +168,12 @@ def _scale_filter(height: int, hdr_to_sdr: bool) -> str:
         # Convert HDR sources to SDR so browsers avoid near-black output.
         return (
             "zscale=t=linear:npl=100,format=gbrpf32le,"
-            "tonemap=bt2390:desat=0,"
-            f"zscale=t=bt709:m=bt709:r=tv:p=bt709,"
-            f"scale=-2:{height}:flags=lanczos,"
+            "tonemap=bt2390:desat=0,"  # noqa: E231
+            f"zscale=t=bt709:m=bt709:r=tv:p=bt709,"  # noqa: E231
+            f"scale=-2:{height}:flags=lanczos,"  # noqa: E231
             "format=yuv420p"
         )
-    return f"scale=-2:{height}:flags=lanczos,format=yuv420p"
+    return f"scale=-2:{height}:flags=lanczos,format=yuv420p"  # noqa: E231
 
 
 def hls_dir(kind: str, object_id: int) -> Path:
@@ -341,7 +341,10 @@ def _generate_hls(
         _report(
             progress_callback,
             56,
-            f"hls:fast-mode ({source_size_mb}MB, single variant)",
+            (
+                f"hls:fast-mode "  # noqa: E231
+                f"({source_size_mb}MB, single variant)"
+            ),
         )
 
     hdr_source = _is_hdr_source(mp4_path)
@@ -353,8 +356,8 @@ def _generate_hls(
         if multi_variant:
             scale_low = _scale_filter(height_low, hdr_to_sdr)
             filter_complex = (
-                f"[0:v]split=2[vmain][vlow];"
-                f"[vmain]{scale_main}[v0];"
+                f"[0:v]split=2[vmain][vlow];"  # noqa: E231,E702
+                f"[vmain]{scale_main}[v0];"  # noqa: E231,E702
                 f"[vlow]{scale_low}[v1]"
             )
             cmd = [
@@ -426,7 +429,7 @@ def _generate_hls(
                 "-sc_threshold",
                 "0",
                 "-force_key_frames",
-                f"expr:gte(t,n_forced*{segment_seconds})",
+                f"expr:gte(t,n_forced*{segment_seconds})",  # noqa: E231
             ]
             if has_audio:
                 cmd += [
@@ -496,7 +499,7 @@ def _generate_hls(
             "-sc_threshold",
             "0",
             "-force_key_frames",
-            f"expr:gte(t,n_forced*{segment_seconds})",
+            f"expr:gte(t,n_forced*{segment_seconds})",  # noqa: E231
         ]
         if has_audio:
             cmd += [

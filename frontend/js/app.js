@@ -41,15 +41,37 @@ const FeedApp = (() => {
       return;
     }
     for (const c of items) {
-      const el = document.createElement("div");
-      el.className = "comment";
-      el.innerHTML = `
-        <div class="comment__user">${escapeHtml(c.user || "user")}</div>
-        <div class="comment__text">${escapeHtml(c.text || "")}</div>
-        <div class="comment__time">${escapeHtml(formatTime(c.created_at))}</div>
-      `;
-      commentsList.appendChild(el);
+      commentsList.appendChild(renderComment(c));
     }
+  }
+
+  function renderComment(c) {
+    const el = document.createElement("div");
+    el.className = "comment";
+    el.dataset.commentId = String(c.id || "");
+    const deleteButton = c.can_delete
+      ? `<button class="comment__delete" type="button" data-action="delete-comment" data-comment-id="${escapeHtml(c.id)}">Удалить</button>`
+      : "";
+    el.innerHTML = `
+      <div class="comment__head">
+        <div class="comment__user">${escapeHtml(c.user || "user")}</div>
+        ${deleteButton}
+      </div>
+      <div class="comment__text">${escapeHtml(c.text || "")}</div>
+      <div class="comment__time">${escapeHtml(formatTime(c.created_at))}</div>
+    `;
+    return el;
+  }
+
+  function updateActiveCommentCount(delta) {
+    if (!activeCommentVideoId) return;
+    const post = document.querySelector(
+      `.post[data-id="${activeCommentVideoId}"]`
+    );
+    const countEl = post?.querySelector('[data-role="comments"]');
+    if (!countEl) return;
+    const current = parseInt(countEl.textContent || "0", 10);
+    countEl.textContent = String(Math.max(0, current + delta));
   }
 
   async function openCommentsModal(videoId) {
@@ -140,24 +162,34 @@ const FeedApp = (() => {
           ) {
             commentsList.innerHTML = "";
           }
-          const el = document.createElement("div");
-          el.className = "comment";
-          el.innerHTML = `
-            <div class="comment__user">${escapeHtml(newComment.user || "user")}</div>
-            <div class="comment__text">${escapeHtml(newComment.text || "")}</div>
-            <div class="comment__time">${escapeHtml(formatTime(newComment.created_at))}</div>
-          `;
-          commentsList.prepend(el);
+          commentsList.prepend(renderComment(newComment));
         }
         if (input) input.value = "";
+        updateActiveCommentCount(1);
+      });
+    }
 
-        const post = document.querySelector(
-          `.post[data-id="${activeCommentVideoId}"]`
-        );
-        const countEl = post?.querySelector('[data-role="comments"]');
-        if (countEl) {
-          const current = parseInt(countEl.textContent || "0", 10);
-          countEl.textContent = String(current + 1);
+    if (commentsList) {
+      commentsList.addEventListener("click", async (e) => {
+        const target = e.target;
+        if (target?.dataset?.action !== "delete-comment") return;
+        const commentId = Number(target.dataset.commentId || 0);
+        if (!commentId) return;
+        target.disabled = true;
+        const csrf = await Auth.ensureCsrf();
+        const res = await fetch(`/api/comments/${commentId}/`, {
+          method: "DELETE",
+          credentials: "include",
+          headers: csrf ? { "X-CSRFToken": csrf } : {},
+        });
+        if (!res.ok) {
+          target.disabled = false;
+          return;
+        }
+        target.closest(".comment")?.remove();
+        updateActiveCommentCount(-1);
+        if (!commentsList.querySelector(".comment")) {
+          commentsList.innerHTML = `<div class="comment">РџРѕРєР° РЅРµС‚ РєРѕРјРјРµРЅС‚Р°СЂРёРµРІ</div>`;
         }
       });
     }

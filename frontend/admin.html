@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Video Admin</title>
-  <link rel="stylesheet" href="/css/main.css?v=20260225-4" />
+  <link rel="stylesheet" href="/css/main.css?v=20260225-5" />
 </head>
 <body class="admin-page">
   <header class="topbar">
@@ -103,9 +103,18 @@
       <h2 class="admin__title">Recent Videos</h2>
       <div class="admin__list admin__list--compact" id="recentList"></div>
     </section>
+
+    <section class="admin__panel">
+      <h2 class="admin__title">Comment Moderation</h2>
+      <div class="admin__actions">
+        <button class="btn btn--ghost" id="reloadCommentsBtn" type="button">Reload</button>
+      </div>
+      <div class="admin__helper" id="commentsStatus">Loading comments...</div>
+      <div class="admin__list admin__list--compact" id="commentsList"></div>
+    </section>
   </main>
 
-  <script src="/js/auth.js?v=20260225-3"></script>
-  <script src="/js/admin.js?v=20260225-3"></script>
+  <script src="/js/auth.js?v=20260225-4"></script>
+  <script src="/js/admin.js?v=20260225-4"></script>
 </body>
 </html>

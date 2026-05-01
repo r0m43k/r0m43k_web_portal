@@ -20,6 +20,9 @@ const AdminApp = (() => {
   const heroUploadBtn = document.getElementById("heroUploadBtn");
   const heroPreview = document.getElementById("heroPreview");
   const heroStatus = document.getElementById("heroStatus");
+  const adminCommentsList = document.getElementById("commentsList");
+  const commentsStatus = document.getElementById("commentsStatus");
+  const reloadCommentsBtn = document.getElementById("reloadCommentsBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const adminUser = document.getElementById("adminUser");
 
@@ -212,6 +215,89 @@ const AdminApp = (() => {
         </div>
       `;
       recentList.appendChild(el);
+    }
+  }
+
+  function renderCommentsList(items) {
+    if (!adminCommentsList) return;
+    const comments = Array.isArray(items) ? items : [];
+    if (!comments.length) {
+      adminCommentsList.innerHTML = "No comments yet";
+      return;
+    }
+    adminCommentsList.innerHTML = "";
+    for (const item of comments) {
+      const el = document.createElement("div");
+      el.className = "admin-card admin-card--compact admin-comment";
+      el.dataset.commentId = String(item.id);
+      const videoTitle = escapeHtml(item.video_title || "Untitled video");
+      const user = escapeHtml(item.user || "user");
+      const text = escapeHtml(item.text || "");
+      const createdAt = escapeHtml(
+        item.created_at ? new Date(item.created_at).toLocaleString("ru-RU") : ""
+      );
+      el.innerHTML = `
+        <div class="admin-card__meta">
+          <div class="admin-card__title">${user}</div>
+          <div class="admin-card__sub">video: ${videoTitle} (#${escapeHtml(item.video_id || "")})</div>
+          <div class="admin-comment__text">${text}</div>
+          <div class="admin-card__sub">${createdAt}</div>
+        </div>
+        <button class="btn btn--ghost admin-comment__delete" type="button" data-action="delete-comment" data-comment-id="${escapeHtml(item.id)}">Delete</button>
+      `;
+      adminCommentsList.appendChild(el);
+    }
+  }
+
+  async function loadComments() {
+    if (!adminCommentsList) return;
+    adminCommentsList.innerHTML = "Loading...";
+    if (commentsStatus) commentsStatus.textContent = "Loading comments...";
+    try {
+      const res = await apiFetch("/api/admin/comments/?limit=100");
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Unable to load comments");
+        adminCommentsList.innerHTML = message;
+        if (commentsStatus) commentsStatus.textContent = message;
+        return;
+      }
+      const items = await res.json();
+      renderCommentsList(items);
+      if (commentsStatus) commentsStatus.textContent = "Latest comments loaded.";
+    } catch (err) {
+      const message = err?.message || "Unable to load comments";
+      adminCommentsList.innerHTML = message;
+      if (commentsStatus) commentsStatus.textContent = message;
+    }
+  }
+
+  async function deleteComment(commentId, buttonEl) {
+    if (!commentId) return;
+    if (buttonEl) buttonEl.disabled = true;
+    if (commentsStatus) commentsStatus.textContent = "Deleting comment...";
+    try {
+      const csrf = await Auth.ensureCsrf();
+      const res = await apiFetch(`/api/comments/${commentId}/`, {
+        method: "DELETE",
+        headers: csrf ? { "X-CSRFToken": csrf } : {},
+      });
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Failed to delete comment");
+        if (commentsStatus) commentsStatus.textContent = message;
+        if (buttonEl) buttonEl.disabled = false;
+        return;
+      }
+      buttonEl?.closest(".admin-comment")?.remove();
+      if (commentsStatus) commentsStatus.textContent = "Comment deleted.";
+      if (adminCommentsList && !adminCommentsList.children.length) {
+        adminCommentsList.innerHTML = "No comments yet";
+      }
+      await loadRecentVideos();
+    } catch (err) {
+      if (commentsStatus) {
+        commentsStatus.textContent = err?.message || "Failed to delete comment";
+      }
+      if (buttonEl) buttonEl.disabled = false;
     }
   }
 
@@ -608,6 +694,20 @@ const AdminApp = (() => {
     heroForm.addEventListener("submit", handleHeroUploadSubmit);
   }
 
+  function wireCommentActions() {
+    if (reloadCommentsBtn) {
+      reloadCommentsBtn.addEventListener("click", loadComments);
+    }
+    if (adminCommentsList) {
+      adminCommentsList.addEventListener("click", (e) => {
+        const target = e.target;
+        if (target?.dataset?.action !== "delete-comment") return;
+        const commentId = Number(target.dataset.commentId || 0);
+        deleteComment(commentId, target);
+      });
+    }
+  }
+
   function wireLogout() {
     if (!logoutBtn) return;
     logoutBtn.addEventListener("click", async () => {
@@ -625,10 +725,11 @@ const AdminApp = (() => {
     wireJobRetry();
     wireOrderActions();
     wireHeroUpload();
+    wireCommentActions();
     if (uploadForm) {
       uploadForm.addEventListener("submit", handleUploadSubmit);
     }
-    await Promise.all([loadHeroMedia(), loadRecentVideos()]);
+    await Promise.all([loadHeroMedia(), loadRecentVideos(), loadComments()]);
   }
 
   return { boot };

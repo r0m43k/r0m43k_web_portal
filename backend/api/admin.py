@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import HeroVideo, Video
+from .models import HeroVideo, Video, VideoComment
 
 
 @admin.action(description="Show in profile")
@@ -33,3 +33,11 @@ class VideoAdmin(admin.ModelAdmin):
 class HeroVideoAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "is_active", "updated_at")
     list_filter = ("is_active",)
+
+
+@admin.register(VideoComment)
+class VideoCommentAdmin(admin.ModelAdmin):
+    list_display = ("id", "video", "user", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("text", "user__username", "video__title")
+    readonly_fields = ("created_at",)

@@ -172,6 +172,23 @@
   color: var(--muted);
 }
 
+.admin-comment {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.admin-comment__text {
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.admin-comment__delete {
+  min-width: 96px;
+}
+
 .admin__hero-preview {
   margin-top: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -252,6 +269,14 @@
   }
 
   .admin__actions .btn {
+    width: 100%;
+  }
+
+  .admin-comment {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-comment__delete {
     width: 100%;
   }
 }

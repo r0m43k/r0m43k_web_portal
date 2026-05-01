@@ -9,11 +9,12 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import HeroVideo, MediaJob, UploadSession, Video
+from .models import HeroVideo, MediaJob, UploadSession, Video, VideoComment
 from .serializers import (
     AdminHeroVideoSerializer,
     AdminMediaJobSerializer,
     AdminUploadSessionSerializer,
+    AdminVideoCommentSerializer,
     AdminVideoSerializer,
 )
 
@@ -196,6 +197,23 @@ class AdminVideoOrderView(APIView):
             {"ok": True, "video_ids": ordered_ids},
             status=status.HTTP_200_OK,
         )
+
+
+class AdminVideoCommentListView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        try:
+            limit = int(request.query_params.get("limit") or 100)
+        except ValueError:
+            limit = 100
+        limit = max(1, min(limit, 300))
+        qs = (
+            VideoComment.objects.select_related("user", "video")
+            .order_by("-created_at", "-id")[:limit]
+        )
+        data = AdminVideoCommentSerializer(qs, many=True).data
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class AdminUploadStatusView(APIView):

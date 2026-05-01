@@ -4,7 +4,7 @@ from django.test import Client
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import HeroVideo, Video
+from .models import HeroVideo, Video, VideoComment
 
 
 class AdminVideoOrderTests(TestCase):
@@ -196,3 +196,48 @@ class CommentPermissionTests(TestCase):
             format="json",
         )
         self.assertIn(res.status_code, (401, 403))
+
+    def test_author_can_delete_own_comment(self):
+        comment = VideoComment.objects.create(
+            video=self.video,
+            user=self.viewer,
+            text="remove me",
+        )
+        self.client.force_authenticate(user=self.viewer)
+        res = self.client.delete(f"/api/comments/{comment.id}/")
+        self.assertEqual(res.status_code, 204)
+        self.assertFalse(VideoComment.objects.filter(pk=comment.id).exists())
+
+    def test_other_user_cannot_delete_comment(self):
+        comment = VideoComment.objects.create(
+            video=self.video,
+            user=self.author,
+            text="keep me",
+        )
+        self.client.force_authenticate(user=self.viewer)
+        res = self.client.delete(f"/api/comments/{comment.id}/")
+        self.assertEqual(res.status_code, 403)
+        self.assertTrue(VideoComment.objects.filter(pk=comment.id).exists())
+
+    def test_admin_can_list_and_delete_any_comment(self):
+        user_model = get_user_model()
+        admin = user_model.objects.create_user(
+            username="commentadmin",
+            email="commentadmin@example.com",
+            password="pass12345",
+            is_staff=True,
+        )
+        comment = VideoComment.objects.create(
+            video=self.video,
+            user=self.viewer,
+            text="moderate me",
+        )
+        self.client.force_authenticate(user=admin)
+
+        list_res = self.client.get("/api/admin/comments/")
+        self.assertEqual(list_res.status_code, 200)
+        self.assertEqual(list_res.json()[0]["text"], "moderate me")
+
+        delete_res = self.client.delete(f"/api/comments/{comment.id}/")
+        self.assertEqual(delete_res.status_code, 204)
+        self.assertFalse(VideoComment.objects.filter(pk=comment.id).exists())

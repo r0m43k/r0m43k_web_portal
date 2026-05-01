@@ -172,7 +172,7 @@ class MediaJob(models.Model):
     def __str__(self):
         target = self.video_id or self.hero_id
         return (
-            f"{self.kind}:{target} {self.status}"
+            f"{self.kind}:{target} {self.status}"  # noqa: E231
             f" ({self.progress}% {self.stage})"
         )
 

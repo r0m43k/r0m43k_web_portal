@@ -203,6 +203,8 @@ jobs:
               sudo docker compose -f "$COMPOSE_FILE" restart gateway
             fi
 
+            sudo docker compose -f "$COMPOSE_FILE" up -d certbot-renew
+
             ADMIN_USERNAME="${{ secrets.ADMIN_USERNAME }}"
             ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}"
             sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py shell -c "from django.contrib.auth.models import User; u, _ = User.objects.get_or_create(username='$ADMIN_USERNAME'); u.is_superuser=True; u.is_staff=True; u.set_password('$ADMIN_PASSWORD'); u.save()"
