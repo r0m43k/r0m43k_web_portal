@@ -215,11 +215,11 @@ jobs:
     steps:
       - name: Check HTTPS returns something
         run: |
-          curl -IsS "https://${{ secrets.HOST }}/" | head -n 1 | grep -qE "200|301|302"
+          curl -IsS "https://r0m43k.live/" | head -n 1 | grep -qE "200|301|302"
       - name: Check public endpoints
         run: |
           set -euo pipefail
-          base="https://${{ secrets.HOST }}"
+          base="https://r0m43k.live"
           checks=(
             "/ 200|301|302"
             "/admin/ 200|301|302|403"
