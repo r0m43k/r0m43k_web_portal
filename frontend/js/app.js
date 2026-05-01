@@ -19,6 +19,10 @@ const FeedApp = (() => {
   let postsCount = 0;
   let currentUser = null;
   let activeCommentVideoId = null;
+  let hlsLibraryPromise = null;
+
+  const HLS_JS_URL = "https://cdn.jsdelivr.net/npm/hls.js@1.5.8";
+  const QUALITY_PREF_KEY = "feedQualityPreference";
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -399,6 +403,33 @@ const FeedApp = (() => {
     return t1 === "probably" || t1 === "maybe" || t2 === "probably" || t2 === "maybe";
   }
 
+  function loadHlsLibrary() {
+    if (window.Hls) return Promise.resolve(window.Hls);
+    if (hlsLibraryPromise) return hlsLibraryPromise;
+
+    hlsLibraryPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = HLS_JS_URL;
+      script.async = true;
+      script.crossOrigin = "anonymous";
+      script.onload = () => {
+        if (window.Hls) resolve(window.Hls);
+        else reject(new Error("hls.js unavailable"));
+      };
+      script.onerror = () => reject(new Error("hls.js load failed"));
+      document.head.appendChild(script);
+    });
+
+    return hlsLibraryPromise;
+  }
+
+  function warmHlsLibrary() {
+    const probe = document.createElement("video");
+    if (!canPlayHls(probe)) {
+      loadHlsLibrary().catch(() => {});
+    }
+  }
+
   function ensureLoopPlayback(videoEl) {
     if (!videoEl) return;
     if (videoEl.dataset.loopBound === "1") return;
@@ -425,6 +456,91 @@ const FeedApp = (() => {
     qualityEl.textContent = `Качество: ${value}`;
   }
 
+  function getQualityPreference() {
+    try {
+      return localStorage.getItem(QUALITY_PREF_KEY) || "low";
+    } catch {
+      return "low";
+    }
+  }
+
+  function setQualityPreference(value) {
+    try {
+      localStorage.setItem(QUALITY_PREF_KEY, value || "low");
+    } catch {}
+  }
+
+  function levelLabel(level) {
+    return qualityLabelFromHeight(level?.height);
+  }
+
+  function levelValue(level, idx) {
+    return `level:${idx}:${Number(level?.height || 0)}`;
+  }
+
+  function levelIndexFromValue(value) {
+    const match = String(value || "").match(/^level:(\d+):/);
+    if (!match) return null;
+    const idx = Number(match[1]);
+    return Number.isFinite(idx) ? idx : null;
+  }
+
+  function preferredLevelIndex(levels, pref) {
+    const list = Array.isArray(levels) ? levels : [];
+    if (!list.length || pref === "auto") return -1;
+    if (pref?.startsWith("level:")) {
+      const idx = levelIndexFromValue(pref);
+      if (idx !== null && list[idx]) return idx;
+    }
+    return list.reduce((best, level, idx) => {
+      if (best < 0) return idx;
+      const current = Number(level.height || 0);
+      const selected = Number(list[best].height || 0);
+      return pref === "high"
+        ? (current > selected ? idx : best)
+        : (current < selected ? idx : best);
+    }, -1);
+  }
+
+  function applyHlsQuality(hls, selectEl, qualityEl, value) {
+    if (!hls) return;
+    const pref = value || getQualityPreference();
+    const idx = preferredLevelIndex(hls.levels, pref);
+    if (idx < 0) {
+      hls.currentLevel = -1;
+      hls.nextLevel = -1;
+      hls.loadLevel = -1;
+      setQualityBadge(qualityEl, "авто");
+      if (selectEl) selectEl.value = "auto";
+      return;
+    }
+    hls.currentLevel = idx;
+    hls.nextLevel = idx;
+    hls.loadLevel = idx;
+    const label = levelLabel(hls.levels[idx]);
+    setQualityBadge(qualityEl, label);
+    if (selectEl) selectEl.value = levelValue(hls.levels[idx], idx);
+  }
+
+  function populateQualitySelect(selectEl, hls, qualityEl) {
+    if (!selectEl || !hls?.levels?.length) return;
+    const seen = new Set();
+    const options = [`<option value="auto">Авто</option>`];
+
+    hls.levels.forEach((level, idx) => {
+      const label = levelLabel(level);
+      if (seen.has(label)) return;
+      seen.add(label);
+      options.push(
+        `<option value="${levelValue(level, idx)}">${label}</option>`
+      );
+    });
+
+    selectEl.innerHTML = options.join("");
+    selectEl.disabled = false;
+    applyHlsQuality(hls, selectEl, qualityEl, getQualityPreference());
+  }
+
   function bindQualityTracking(videoEl, qualityEl) {
     if (!videoEl || !qualityEl) {
       return { updateFromVideo: () => {} };
@@ -446,7 +562,7 @@ const FeedApp = (() => {
     return { updateFromVideo: videoEl.__qualityUpdater };
   }
 
-  function attachStreamSource(videoEl, src, hlsUrl, qualityEl) {
+  function attachStreamSource(videoEl, src, hlsUrl, qualityEl, qualitySelect) {
     if (!videoEl) return;
     if (videoEl.dataset.loaded === "1") return;
     if (!src && !hlsUrl) return;
@@ -499,9 +615,10 @@ const FeedApp = (() => {
       videoEl.play().catch(() => {});
     };
 
-    if (hlsUrl && window.Hls && window.Hls.isSupported()) {
-      const hls = new window.Hls({
-        autoStartLoad: true,
+    const setupHlsJs = (Hls) => {
+      if (!Hls?.isSupported?.()) return false;
+      const hls = new Hls({
+        autoStartLoad: false,
         startLevel: 0,
         maxBufferLength: 8,
         maxMaxBufferLength: 12,
@@ -510,18 +627,28 @@ const FeedApp = (() => {
         abrEwmaDefaultEstimate: 450000,
       });
       videoEl.__hls = hls;
+      let hlsStarted = false;
+      const startHls = () => {
+        if (hlsStarted) return;
+        hlsStarted = true;
+        hls.startLoad(-1);
+        videoEl.play().catch(() => {});
+      };
       const updateFromLevelIndex = (idx) => {
         const level = hls.levels?.[idx];
         if (!level) return;
         setQualityBadge(qualityEl, qualityLabelFromHeight(level.height));
       };
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        populateQualitySelect(qualitySelect, hls, qualityEl);
         const idx = hls.currentLevel >= 0 ? hls.currentLevel : hls.loadLevel;
         if (Number.isFinite(idx) && idx >= 0) {
           updateFromLevelIndex(idx);
+          startHls();
           return;
         }
         updateFromVideo();
+        startHls();
       });
       hls.on(window.Hls.Events.LEVEL_SWITCHED, (_evt, data) => {
         const idx = Number(data?.level);
@@ -551,7 +678,31 @@ const FeedApp = (() => {
       });
       hls.loadSource(hlsUrl);
       hls.attachMedia(videoEl);
+      if (qualitySelect && qualitySelect.dataset.bound !== "1") {
+        qualitySelect.dataset.bound = "1";
+        qualitySelect.addEventListener("change", () => {
+          const value = qualitySelect.value || "low";
+          setQualityPreference(value === "auto" ? "auto" : value);
+          applyHlsQuality(hls, qualitySelect, qualityEl, value);
+        });
+      }
       armStartupWatchdog();
+      return true;
+    };
+
+    if (hlsUrl && window.Hls && setupHlsJs(window.Hls)) {
+      return;
+    }
+
+    if (hlsUrl && !canPlayHls(videoEl)) {
+      if (qualitySelect) qualitySelect.disabled = true;
+      armStartupWatchdog();
+      loadHlsLibrary()
+        .then((Hls) => {
+          clearStartupWatchdog();
+          if (!setupHlsJs(Hls)) fallbackToMp4();
+        })
+        .catch(() => fallbackToMp4());
       return;
     }
 
@@ -667,7 +818,10 @@ const FeedApp = (() => {
   }
 
   function ensureVideoSource(videoEl, src, hlsUrl, qualityEl) {
-    attachStreamSource(videoEl, src, hlsUrl, qualityEl);
+    const qualitySelect = videoEl
+      ?.closest(".post")
+      ?.querySelector('[data-role="quality-select"]');
+    attachStreamSource(videoEl, src, hlsUrl, qualityEl, qualitySelect);
   }
 
   function createPost(v) {
@@ -704,6 +858,9 @@ const FeedApp = (() => {
             <div class="video-loader__text">Загрузка видео 0%</div>
           </div>
           <div class="post__quality" data-role="quality">Качество: авто</div>
+          <select class="quality-select" data-role="quality-select" aria-label="Качество видео" disabled>
+            <option value="low">480p</option>
+          </select>
         </div>
 
         <div class="post__actions">
@@ -955,6 +1112,7 @@ const FeedApp = (() => {
     setupNearbyVideoPreload();
     setupInfiniteScroll();
     setupCommentsModal();
+    warmHlsLibrary();
 
     // IMPORTANT: мы можем начать подгрузку сразу, но это не мешает —
     // hero остаётся первым экраном, а посты просто появятся ниже.

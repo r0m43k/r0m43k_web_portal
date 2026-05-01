@@ -192,6 +192,23 @@
   justify-content: center;
 }
 
+.quality-select{
+  margin-top: 8px;
+  width: max-content;
+  max-width: 120px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px;
+  background: rgba(0,0,0,.48);
+  color: rgba(255,255,255,.9);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 24px 6px 10px;
+  outline: none;
+}
+.quality-select:disabled{
+  opacity: .55;
+}
+
 .seek-indicator{
   position: absolute;
   inset: 0;

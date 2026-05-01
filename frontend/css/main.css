@@ -1,9 +1,9 @@
-@import url("/css/base/tokens.css");
-@import url("/css/base/reset.css");
+@import url("/css/base/tokens.css?v=20260502-3");
+@import url("/css/base/reset.css?v=20260502-3");
 
-@import url("/css/components/buttons.css");
-@import url("/css/components/topbar.css");
+@import url("/css/components/buttons.css?v=20260502-3");
+@import url("/css/components/topbar.css?v=20260502-3");
 
-@import url("/css/pages/feed.css");
-@import url("/css/pages/auth.css");
-@import url("/css/pages/admin.css");
+@import url("/css/pages/feed.css?v=20260502-3");
+@import url("/css/pages/auth.css?v=20260502-3");
+@import url("/css/pages/admin.css?v=20260502-3");
