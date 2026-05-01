@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 import json
+import uuid
 from pathlib import Path
 
 from django.conf import settings
@@ -356,9 +357,9 @@ def _generate_hls(
         if multi_variant:
             scale_low = _scale_filter(height_low, hdr_to_sdr)
             filter_complex = (
-                f"[0:v]split=2[vmain][vlow];"  # noqa: E231,E702
-                f"[vmain]{scale_main}[v0];"  # noqa: E231,E702
-                f"[vlow]{scale_low}[v1]"
+                f"[0:v]split=2[vlow][vmain];"  # noqa: E231,E702
+                f"[vlow]{scale_low}[v0];"  # noqa: E231,E702
+                f"[vmain]{scale_main}[v1]"
             )
             cmd = [
                 "ffmpeg",
@@ -383,13 +384,13 @@ def _generate_hls(
                 "-preset",
                 preset,
                 "-crf",
-                str(crf_main),
+                str(crf_low),
                 "-threads:v:0",
                 "0",
                 "-maxrate:v:0",
-                maxrate_main,
+                maxrate_low,
                 "-bufsize:v:0",
-                bufsize_main,
+                bufsize_low,
                 "-g:v:0",
                 str(gop),
                 "-keyint_min:v:0",
@@ -407,13 +408,13 @@ def _generate_hls(
                 "-preset",
                 preset,
                 "-crf",
-                str(crf_low),
+                str(crf_main),
                 "-threads:v:1",
                 "0",
                 "-maxrate:v:1",
-                maxrate_low,
+                maxrate_main,
                 "-bufsize:v:1",
-                bufsize_low,
+                bufsize_main,
                 "-g:v:1",
                 str(gop),
                 "-keyint_min:v:1",
@@ -631,18 +632,38 @@ def prepare_video_for_streaming(
             hls_kind = "hero"
 
     out_dir = hls_dir(hls_kind, model.pk)
-    if out_dir.exists():
-        shutil.rmtree(out_dir, ignore_errors=True)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_parent = out_dir.parent
+    out_parent.mkdir(parents=True, exist_ok=True)
+    tmp_dir = out_parent / (
+        f".{out_dir.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
+    )
+    old_dir = out_parent / (
+        f".{out_dir.name}.old-{os.getpid()}-{uuid.uuid4().hex}"
+    )
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
 
     ok = _generate_hls(
         mp4_path,
-        out_dir,
+        tmp_dir,
         progress_callback=progress_callback,
         should_abort=should_abort,
     )
     if not ok:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         return False
+
+    try:
+        if out_dir.exists():
+            out_dir.replace(old_dir)
+        tmp_dir.replace(out_dir)
+    except OSError as exc:
+        logger.warning("hls swap failed for %s: %s", out_dir, exc)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return False
+    finally:
+        shutil.rmtree(old_dir, ignore_errors=True)
 
     _report(progress_callback, 100, "done")
     return True

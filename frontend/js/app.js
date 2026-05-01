@@ -503,11 +503,11 @@ const FeedApp = (() => {
       const hls = new window.Hls({
         autoStartLoad: true,
         startLevel: 0,
-        maxBufferLength: 12,
-        maxMaxBufferLength: 20,
-        backBufferLength: 8,
+        maxBufferLength: 8,
+        maxMaxBufferLength: 12,
+        backBufferLength: 4,
         capLevelToPlayerSize: true,
-        abrEwmaDefaultEstimate: 800000,
+        abrEwmaDefaultEstimate: 450000,
       });
       videoEl.__hls = hls;
       const updateFromLevelIndex = (idx) => {
@@ -893,6 +893,39 @@ const FeedApp = (() => {
     mo.observe(feedEl, { childList: true });
   }
 
+  function setupNearbyVideoPreload() {
+    const connection = navigator.connection || navigator.mozConnection || null;
+    if (connection?.saveData) return;
+
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const post = entry.target;
+        const video = post.querySelector("video");
+        if (!video || video.dataset.loaded === "1") {
+          io.unobserve(post);
+          continue;
+        }
+        const qualityEl = post.querySelector('[data-role="quality"]');
+        ensureVideoSource(video, post.dataset.src, post.dataset.hls, qualityEl);
+        io.unobserve(post);
+      }
+    }, { rootMargin: "900px 0px", threshold: 0.01 });
+
+    const observePost = (post) => {
+      if (!post || post.dataset.preloadObserved === "1") return;
+      if (!post.classList.contains("post--compact")) return;
+      post.dataset.preloadObserved = "1";
+      io.observe(post);
+    };
+
+    document.querySelectorAll(".post--compact").forEach(observePost);
+    const mo = new MutationObserver(() => {
+      document.querySelectorAll(".post--compact").forEach(observePost);
+    });
+    mo.observe(feedEl, { childList: true });
+  }
+
   function setupInfiniteScroll() {
     const io = new IntersectionObserver(async (entries) => {
       if (!entries.some(e => e.isIntersecting)) return;
@@ -919,6 +952,7 @@ const FeedApp = (() => {
     const heroLoadPromise = loadHeroVideo().catch(() => {});
 
     setupActiveAutoplay();
+    setupNearbyVideoPreload();
     setupInfiniteScroll();
     setupCommentsModal();
 

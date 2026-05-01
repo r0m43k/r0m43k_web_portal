@@ -34,15 +34,6 @@ def _hls_is_ready(kind: str, object_id: int) -> bool:
     return latest_status == MediaJob.Status.DONE
 
 
-def _object_hls_is_ready(obj, kind: str) -> bool:
-    latest_status = getattr(obj, "latest_hls_status", None)
-    if latest_status is None:
-        if hasattr(obj, "latest_hls_status"):
-            return True
-        return _hls_is_ready(kind, obj.pk)
-    return latest_status == MediaJob.Status.DONE
-
-
 class VideoSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     hls_url = serializers.SerializerMethodField()
@@ -73,8 +64,6 @@ class VideoSerializer(serializers.ModelSerializer):
 
     def get_hls_url(self, obj):
         if not obj.pk:
-            return None
-        if not _object_hls_is_ready(obj, MediaJob.Kind.VIDEO):
             return None
         manifest = hls_manifest_path("video", obj.pk)
         if not manifest.exists():
@@ -235,8 +224,6 @@ class AdminVideoSerializer(serializers.ModelSerializer):
 
     def get_hls_url(self, obj):
         if not obj.pk:
-            return None
-        if not _object_hls_is_ready(obj, MediaJob.Kind.VIDEO):
             return None
         manifest = hls_manifest_path("video", obj.pk)
         if not manifest.exists():

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from django.db import transaction
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status
@@ -34,14 +34,6 @@ class AdminVideoListCreateView(APIView):
             .annotate(
                 likes_count=Count("likes", distinct=True),
                 comments_count=Count("comments", distinct=True),
-                latest_hls_status=Subquery(
-                    MediaJob.objects.filter(
-                        kind=MediaJob.Kind.VIDEO,
-                        video=OuterRef("pk"),
-                    )
-                    .order_by("-created_at")
-                    .values("status")[:1]
-                ),
             )
             .order_by("display_order", "-created_at", "-id")[:limit]
         )
