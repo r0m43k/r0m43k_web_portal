@@ -915,7 +915,7 @@ const FeedApp = (() => {
   }
 
   async function boot() {
-    currentUser = await Auth.me();
+    const mePromise = Auth.me();
     const heroLoadPromise = loadHeroVideo().catch(() => {});
 
     setupActiveAutoplay();
@@ -928,6 +928,7 @@ const FeedApp = (() => {
       await sleep(1000);
       return loadNextPage().catch(() => {});
     });
+    currentUser = await mePromise;
     await Promise.all([heroLoadPromise, firstPagePromise]);
 
     // Кнопка "смотреть" = проскроллить к первому посту

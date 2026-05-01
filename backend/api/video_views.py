@@ -1,4 +1,11 @@
-from django.db.models import BooleanField, Count, Exists, OuterRef, Value
+from django.db.models import (
+    BooleanField,
+    Count,
+    Exists,
+    OuterRef,
+    Subquery,
+    Value,
+)
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
@@ -32,6 +39,14 @@ class VideoListView(generics.ListCreateAPIView):
         qs = qs.annotate(
             likes_count=Count("likes", distinct=True),
             comments_count=Count("comments", distinct=True),
+            latest_hls_status=Subquery(
+                MediaJob.objects.filter(
+                    kind=MediaJob.Kind.VIDEO,
+                    video=OuterRef("pk"),
+                )
+                .order_by("-created_at")
+                .values("status")[:1]
+            ),
         )
 
         if self.request.user.is_authenticated:

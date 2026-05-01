@@ -1,5 +1,7 @@
 const Auth = (() => {
   let refreshInFlight = null;
+  let meInFlight = null;
+  let meCached = undefined;
 
   function getCookie(name) {
     const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -44,6 +46,7 @@ const Auth = (() => {
     if (res.status !== 401 || !allowRefresh) return res;
     const refreshed = await refreshAccess();
     if (!refreshed) return res;
+    meCached = undefined;
     res = await fetch(url, request);
     return res;
   }
@@ -69,19 +72,33 @@ const Auth = (() => {
   }
 
   async function me() {
-    try {
-      const res = await fetchWithAuth(
-        "/api/auth/me/",
-        {
-          cache: "no-store",
-        },
-        true
-      );
-      if (!res.ok) return null;
-      return await res.json();
-    } catch {
-      return null;
-    }
+    if (meCached !== undefined) return meCached;
+    if (meInFlight) return meInFlight;
+
+    meInFlight = (async () => {
+      try {
+        const res = await fetchWithAuth(
+          "/api/auth/me/",
+          {
+            cache: "no-store",
+          },
+          true
+        );
+        if (!res.ok) {
+          meCached = null;
+          return meCached;
+        }
+        meCached = await res.json();
+        return meCached;
+      } catch {
+        meCached = null;
+        return meCached;
+      } finally {
+        meInFlight = null;
+      }
+    })();
+
+    return meInFlight;
   }
 
   async function login(login, password) {
@@ -96,6 +113,7 @@ const Auth = (() => {
         data = await res.json();
         detail = data?.detail || "";
       } catch {}
+      meCached = undefined;
       return { ok: res.ok, detail, data };
     } catch {
       return { ok: false, detail: "Сеть недоступна. Попробуйте позже." };
@@ -123,6 +141,7 @@ const Auth = (() => {
   async function logout() {
     try {
       const res = await json("/api/auth/logout/", { method: "POST" });
+      meCached = null;
       return res.ok;
     } catch {
       return false;
