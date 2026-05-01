@@ -30,6 +30,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         run_once = options["once"]
         sleep_time = options["sleep"]
+        self._reset_interrupted_jobs()
 
         while True:
             job = self._acquire_job()
@@ -44,6 +45,17 @@ class Command(BaseCommand):
 
             if run_once:
                 return
+
+    def _reset_interrupted_jobs(self):
+        MediaJob.objects.filter(status=MediaJob.Status.PROCESSING).update(
+            status=MediaJob.Status.PENDING,
+            stage="queued:resume",
+            progress=0,
+            started_at=None,
+            error="",
+            cancel_requested=False,
+            updated_at=timezone.now(),
+        )
 
     def _acquire_job(self):
         with transaction.atomic():
