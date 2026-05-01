@@ -187,9 +187,9 @@ jobs:
             sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py migrate
             sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py collectstatic --noinput
 
-            if [ ! -f "$DEPLOY_DIR/.hls_mobile_480_v2_enqueued" ]; then
-              sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py enqueue_media_rebuild
-              date -u +"%Y-%m-%dT%H:%M:%SZ" > "$DEPLOY_DIR/.hls_mobile_480_v2_enqueued"
+            if [ ! -f "$DEPLOY_DIR/.hls_mobile_480_v3_done" ]; then
+              sudo docker compose -f "$COMPOSE_FILE" exec -T backend python manage.py faststart_media
+              date -u +"%Y-%m-%dT%H:%M:%SZ" > "$DEPLOY_DIR/.hls_mobile_480_v3_done"
             fi
             sudo docker compose -f "$COMPOSE_FILE" up -d media-worker
             sudo docker compose -f "$COMPOSE_FILE" restart backend gateway
