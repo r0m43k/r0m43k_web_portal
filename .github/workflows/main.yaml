@@ -200,6 +200,8 @@ jobs:
 
               sudo docker compose -f "$COMPOSE_FILE" restart gateway
             else
+              sudo docker compose -f "$COMPOSE_FILE" --profile certbot run --rm certbot \
+                renew --webroot --webroot-path=/var/www/certbot --no-random-sleep-on-renew
               sudo docker compose -f "$COMPOSE_FILE" restart gateway
             fi
 
@@ -215,7 +217,7 @@ jobs:
     steps:
       - name: Check HTTPS returns something
         run: |
-          curl -kIsS "https://${{ secrets.HOST }}/" | head -n 1 | grep -qE "200|301|302"
+          curl -IsS "https://${{ secrets.HOST }}/" | head -n 1 | grep -qE "200|301|302"
       - name: Check public endpoints
         run: |
           set -euo pipefail
@@ -232,7 +234,7 @@ jobs:
           for item in "${checks[@]}"; do
             path="${item%% *}"
             code_re="${item#* }"
-            status=$(curl -ksS -o /dev/null -w "%{http_code}" "$base$path")
+            status=$(curl -sS -o /dev/null -w "%{http_code}" "$base$path")
             echo "$path -> $status"
             echo "$status" | grep -qE "^(${code_re})$"
           done
