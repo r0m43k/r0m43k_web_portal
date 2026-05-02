@@ -1246,7 +1246,11 @@ const FeedApp = (() => {
 
       for (const v of items) {
         const post = createPost(v);
-        feedEl.appendChild(post);
+        if (sentinel?.parentElement === feedEl) {
+          feedEl.insertBefore(post, sentinel);
+        } else {
+          feedEl.appendChild(post);
+        }
         if (postsCount === 0) {
           const video = post.querySelector(".post__video");
           const qualityEl = post.querySelector('[data-role="quality"]');
