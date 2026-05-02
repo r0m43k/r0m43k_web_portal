@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import HeroVideo, Video, VideoComment
+from .models import HeroVideo, PhotoCarouselItem, Video, VideoComment
 
 
 @admin.action(description="Show in profile")
@@ -33,6 +33,13 @@ class VideoAdmin(admin.ModelAdmin):
 class HeroVideoAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "is_active", "updated_at")
     list_filter = ("is_active",)
+
+
+@admin.register(PhotoCarouselItem)
+class PhotoCarouselItemAdmin(admin.ModelAdmin):
+    list_display = ("id", "title", "display_order", "is_active", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("title",)
 
 
 @admin.register(VideoComment)

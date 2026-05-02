@@ -169,6 +169,61 @@
   display: none !important;
 }
 
+.photo-carousel{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #050608;
+  overflow: hidden;
+}
+.photo-carousel__track{
+  width: 100%;
+  height: 100%;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.photo-carousel__track::-webkit-scrollbar{
+  display: none;
+}
+.photo-carousel__slide{
+  min-width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
+}
+.photo-carousel__slide img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photo-carousel__dots{
+  position: absolute;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 4;
+}
+.photo-carousel__dot{
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.42);
+}
+.photo-carousel__dot.is-active{
+  width: 18px;
+  background: rgba(255,255,255,.92);
+}
+
 .post__quality{
   margin-top: 8px;
   display: inline-flex;

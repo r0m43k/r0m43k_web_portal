@@ -3,8 +3,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import HeroVideo
-from .serializers import HeroVideoSerializer
+from .models import HeroVideo, PhotoCarouselItem
+from .serializers import HeroVideoSerializer, PhotoCarouselItemSerializer
 
 
 class HeroVideoView(APIView):
@@ -23,6 +23,23 @@ class HeroVideoView(APIView):
             return Response({"detail": "Hero video not found"}, status=404)
 
         serializer = HeroVideoSerializer(hero, context={"request": request})
+        return Response(serializer.data)
+
+
+class PhotoCarouselView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        qs = PhotoCarouselItem.objects.filter(is_active=True).order_by(
+            "display_order",
+            "-created_at",
+            "-id",
+        )
+        serializer = PhotoCarouselItemSerializer(
+            qs,
+            many=True,
+            context={"request": request},
+        )
         return Response(serializer.data)
 
 

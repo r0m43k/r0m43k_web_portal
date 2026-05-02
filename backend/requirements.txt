@@ -4,3 +4,4 @@ gunicorn==22.0.0
 psycopg[binary]==3.2.13
 djangorestframework-simplejwt==5.3.1
 djangorestframework-simplejwt[crypto]==5.3.1
+Pillow==10.4.0

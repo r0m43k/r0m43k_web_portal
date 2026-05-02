@@ -16,10 +16,15 @@ const AdminApp = (() => {
   const orderStatus = document.getElementById("orderStatus");
   const saveOrderBtn = document.getElementById("saveOrderBtn");
   const reloadOrderBtn = document.getElementById("reloadOrderBtn");
-  const heroForm = document.getElementById("heroUploadForm");
-  const heroUploadBtn = document.getElementById("heroUploadBtn");
-  const heroPreview = document.getElementById("heroPreview");
-  const heroStatus = document.getElementById("heroStatus");
+  const carouselForm = document.getElementById("carouselUploadForm");
+  const carouselUploadBtn = document.getElementById("carouselUploadBtn");
+  const saveCarouselOrderBtn = document.getElementById("saveCarouselOrderBtn");
+  const carouselList = document.getElementById("carouselList");
+  const carouselStatus = document.getElementById("carouselStatus");
+  const heroForm = null;
+  const heroUploadBtn = null;
+  const heroPreview = null;
+  const heroStatus = null;
   const adminCommentsList = document.getElementById("commentsList");
   const commentsStatus = document.getElementById("commentsStatus");
   const reloadCommentsBtn = document.getElementById("reloadCommentsBtn");
@@ -381,6 +386,190 @@ const AdminApp = (() => {
     }
   }
 
+  function getCarouselOrderIds() {
+    if (!carouselList) return [];
+    return Array.from(carouselList.querySelectorAll(".admin-carousel-item"))
+      .map((item) => Number(item.dataset.itemId))
+      .filter((value) => Number.isFinite(value) && value > 0);
+  }
+
+  function renderCarouselList(items) {
+    if (!carouselList) return;
+    const photos = Array.isArray(items) ? items : [];
+    if (!photos.length) {
+      carouselList.innerHTML = "No carousel photos yet";
+      return;
+    }
+
+    carouselList.innerHTML = "";
+    for (const item of photos) {
+      const card = document.createElement("div");
+      card.className = "admin-carousel-item";
+      card.draggable = true;
+      card.dataset.itemId = String(item.id);
+      const imageUrl = item.image_url || "";
+      card.innerHTML = `
+        <div class="admin-order-item__grip" aria-hidden="true">в‹®в‹®</div>
+        <img class="admin-carousel-item__thumb" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" />
+        <div class="admin-carousel-item__meta">
+          <div class="admin-order-item__title">${escapeHtml(item.title || "Photo")}</div>
+          <div class="admin-order-item__meta">order: #${escapeHtml(item.display_order || "")}</div>
+        </div>
+        <button class="btn btn--ghost" type="button" data-action="delete-carousel" data-item-id="${escapeHtml(item.id)}">Delete</button>
+      `;
+
+      card.addEventListener("dragstart", () => {
+        dragItem = card;
+        card.classList.add("is-dragging");
+      });
+      card.addEventListener("dragend", () => {
+        card.classList.remove("is-dragging");
+        carouselList
+          .querySelectorAll(".admin-carousel-item")
+          .forEach((el) => el.classList.remove("is-drop-target"));
+        dragItem = null;
+      });
+      card.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (!dragItem || dragItem === card) return;
+        card.classList.add("is-drop-target");
+        const rect = card.getBoundingClientRect();
+        const insertAfter = e.clientY >= rect.top + rect.height / 2;
+        carouselList.insertBefore(
+          dragItem,
+          insertAfter ? card.nextSibling : card
+        );
+      });
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("is-drop-target");
+      });
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        card.classList.remove("is-drop-target");
+      });
+
+      carouselList.appendChild(card);
+    }
+  }
+
+  async function loadCarouselItems() {
+    if (!carouselList) return;
+    carouselList.innerHTML = "Loading...";
+    if (carouselStatus) carouselStatus.textContent = "Loading carousel photos...";
+    try {
+      const res = await apiFetch("/api/admin/carousel/");
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Unable to load carousel");
+        carouselList.innerHTML = message;
+        if (carouselStatus) carouselStatus.textContent = message;
+        return;
+      }
+      const items = await res.json();
+      renderCarouselList(items);
+      if (carouselStatus) carouselStatus.textContent = "Carousel photos loaded.";
+    } catch (err) {
+      const message = err?.message || "Unable to load carousel";
+      carouselList.innerHTML = message;
+      if (carouselStatus) carouselStatus.textContent = message;
+    }
+  }
+
+  async function saveCarouselOrder() {
+    if (!saveCarouselOrderBtn) return;
+    const ids = getCarouselOrderIds();
+    if (!ids.length) {
+      if (carouselStatus) carouselStatus.textContent = "No photos to sort.";
+      return;
+    }
+    saveCarouselOrderBtn.disabled = true;
+    if (carouselStatus) carouselStatus.textContent = "Saving photo order...";
+    try {
+      const csrf = await Auth.ensureCsrf();
+      const res = await apiFetch("/api/admin/carousel/order/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrf ? { "X-CSRFToken": csrf } : {}),
+        },
+        body: JSON.stringify({ item_ids: ids }),
+      });
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Failed to save carousel order");
+        if (carouselStatus) carouselStatus.textContent = message;
+        return;
+      }
+      if (carouselStatus) carouselStatus.textContent = "Photo order saved.";
+      await loadCarouselItems();
+    } catch (err) {
+      if (carouselStatus) {
+        carouselStatus.textContent = err?.message || "Failed to save carousel order";
+      }
+    } finally {
+      saveCarouselOrderBtn.disabled = false;
+    }
+  }
+
+  async function deleteCarouselItem(itemId, buttonEl) {
+    if (!itemId) return;
+    if (buttonEl) buttonEl.disabled = true;
+    if (carouselStatus) carouselStatus.textContent = "Deleting photo...";
+    try {
+      const csrf = await Auth.ensureCsrf();
+      const res = await apiFetch(`/api/admin/carousel/${itemId}/`, {
+        method: "DELETE",
+        headers: csrf ? { "X-CSRFToken": csrf } : {},
+      });
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Failed to delete photo");
+        if (carouselStatus) carouselStatus.textContent = message;
+        if (buttonEl) buttonEl.disabled = false;
+        return;
+      }
+      if (carouselStatus) carouselStatus.textContent = "Photo deleted.";
+      await loadCarouselItems();
+    } catch (err) {
+      if (carouselStatus) {
+        carouselStatus.textContent = err?.message || "Failed to delete photo";
+      }
+      if (buttonEl) buttonEl.disabled = false;
+    }
+  }
+
+  async function handleCarouselUploadSubmit(e) {
+    e.preventDefault();
+    if (!carouselForm || !carouselUploadBtn) return;
+    const fileInput = carouselForm.querySelector("input[type='file']");
+    if (!fileInput || !fileInput.files || fileInput.files.length < 1) {
+      if (carouselStatus) carouselStatus.textContent = "Select at least one photo.";
+      return;
+    }
+    carouselUploadBtn.disabled = true;
+    if (carouselStatus) carouselStatus.textContent = "Uploading photos...";
+    try {
+      if (Auth?.refreshAccess) {
+        await Auth.refreshAccess();
+      }
+      const csrf = await Auth.ensureCsrf();
+      const res = await apiFetch("/api/admin/carousel/", {
+        method: "POST",
+        body: new FormData(carouselForm),
+        headers: csrf ? { "X-CSRFToken": csrf } : {},
+      });
+      if (!res.ok) {
+        const message = await extractErrorText(res, "Photo upload failed");
+        if (carouselStatus) carouselStatus.textContent = message;
+        return;
+      }
+      carouselForm.reset();
+      if (carouselStatus) carouselStatus.textContent = "Photos uploaded.";
+      await loadCarouselItems();
+    } catch (err) {
+      if (carouselStatus) carouselStatus.textContent = err?.message || "Photo upload failed";
+    } finally {
+      carouselUploadBtn.disabled = false;
+    }
+  }
+
   function renderHeroPreview(data) {
     if (!heroPreview) return;
     const fileUrl = data?.file_url || "";
@@ -689,9 +878,21 @@ const AdminApp = (() => {
     }
   }
 
-  function wireHeroUpload() {
-    if (!heroForm) return;
-    heroForm.addEventListener("submit", handleHeroUploadSubmit);
+  function wireCarouselUpload() {
+    if (carouselForm) {
+      carouselForm.addEventListener("submit", handleCarouselUploadSubmit);
+    }
+    if (saveCarouselOrderBtn) {
+      saveCarouselOrderBtn.addEventListener("click", saveCarouselOrder);
+    }
+    if (carouselList) {
+      carouselList.addEventListener("click", (e) => {
+        const target = e.target;
+        if (target?.dataset?.action !== "delete-carousel") return;
+        const itemId = Number(target.dataset.itemId || 0);
+        deleteCarouselItem(itemId, target);
+      });
+    }
   }
 
   function wireCommentActions() {
@@ -724,12 +925,12 @@ const AdminApp = (() => {
     wireJobCancel();
     wireJobRetry();
     wireOrderActions();
-    wireHeroUpload();
+    wireCarouselUpload();
     wireCommentActions();
     if (uploadForm) {
       uploadForm.addEventListener("submit", handleUploadSubmit);
     }
-    await Promise.all([loadHeroMedia(), loadRecentVideos(), loadComments()]);
+    await Promise.all([loadCarouselItems(), loadRecentVideos(), loadComments()]);
   }
 
   return { boot };

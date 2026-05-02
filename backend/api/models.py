@@ -21,6 +21,10 @@ def raw_hero_upload_to(_instance, filename: str) -> str:
     return _build_raw_upload_path("hero", filename)
 
 
+def raw_carousel_upload_to(_instance, filename: str) -> str:
+    return _build_raw_upload_path("carousel", filename)
+
+
 class Video(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -73,6 +77,32 @@ class HeroVideo(models.Model):
 
     def __str__(self):
         return self.title or f"Hero video #{self.pk}"
+
+
+class PhotoCarouselItem(models.Model):
+    title = models.CharField(max_length=200, blank=True)
+    image = models.FileField(upload_to=raw_carousel_upload_to)
+    display_order = models.PositiveIntegerField(default=0, db_index=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["display_order", "-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and int(self.display_order or 0) <= 0:
+            max_order = (
+                PhotoCarouselItem.objects.aggregate(
+                    max_display_order=Max("display_order")
+                )["max_display_order"]
+                or 0
+            )
+            self.display_order = int(max_order) + 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title or f"Carousel photo #{self.pk}"
 
 
 class UploadSession(models.Model):

@@ -208,6 +208,47 @@
   background: #000;
 }
 
+.admin__carousel-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-carousel-item {
+  display: grid;
+  grid-template-columns: auto 72px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px 12px;
+  cursor: grab;
+}
+
+.admin-carousel-item.is-dragging {
+  opacity: 0.55;
+}
+
+.admin-carousel-item.is-drop-target {
+  border-color: #4c8bf5;
+  box-shadow: 0 0 0 1px rgba(76, 139, 245, 0.4);
+}
+
+.admin-carousel-item__thumb {
+  width: 72px;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #050608;
+}
+
+.admin-carousel-item__meta {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
 .admin__order-list {
   display: grid;
   gap: 8px;

@@ -14,6 +14,9 @@ from .admin_views import (
     AdminJobCancelView,
     AdminJobRetryView,
     AdminJobStatusView,
+    AdminPhotoCarouselItemDetailView,
+    AdminPhotoCarouselListCreateView,
+    AdminPhotoCarouselOrderView,
     AdminUploadStatusView,
     AdminVideoCommentListView,
     AdminVideoOrderView,
@@ -25,7 +28,7 @@ from .video_views import (
     VideoLikeToggleView,
     VideoListView,
 )
-from .views import HeroVideoView, health, me
+from .views import HeroVideoView, PhotoCarouselView, health, me
 
 urlpatterns = [
     path("health/", health),
@@ -49,6 +52,8 @@ urlpatterns = [
     path("videos/<int:video_id>/like/", VideoLikeToggleView.as_view()),
     path("hero/", HeroVideoView.as_view()),
     path("hero", HeroVideoView.as_view()),
+    path("carousel/", PhotoCarouselView.as_view()),
+    path("carousel", PhotoCarouselView.as_view()),
     path("admin/videos", AdminVideoListCreateView.as_view()),
     path("admin/videos/", AdminVideoListCreateView.as_view()),
     path("admin/videos/order", AdminVideoOrderView.as_view()),
@@ -67,4 +72,16 @@ urlpatterns = [
     path("admin/hero/", AdminHeroUploadView.as_view()),
     path("admin/hero/current", AdminHeroCurrentView.as_view()),
     path("admin/hero/current/", AdminHeroCurrentView.as_view()),
+    path("admin/carousel", AdminPhotoCarouselListCreateView.as_view()),
+    path("admin/carousel/", AdminPhotoCarouselListCreateView.as_view()),
+    path("admin/carousel/order", AdminPhotoCarouselOrderView.as_view()),
+    path("admin/carousel/order/", AdminPhotoCarouselOrderView.as_view()),
+    path(
+        "admin/carousel/<int:item_id>",
+        AdminPhotoCarouselItemDetailView.as_view(),
+    ),
+    path(
+        "admin/carousel/<int:item_id>/",
+        AdminPhotoCarouselItemDetailView.as_view(),
+    ),
 ]

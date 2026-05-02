@@ -3,6 +3,9 @@ const FeedApp = (() => {
   const sentinel = document.getElementById("sentinel");
   const heroVideo = document.getElementById("heroVideo");
   const heroPost = document.getElementById("heroPost");
+  const photoCarousel = document.getElementById("photoCarousel");
+  const photoCarouselTrack = document.getElementById("photoCarouselTrack");
+  const photoCarouselDots = document.getElementById("photoCarouselDots");
   const startBtn = document.getElementById("startBtn");
   const heroLoader = document.getElementById("heroLoader");
   const heroQuality = document.getElementById("heroQuality");
@@ -891,7 +894,82 @@ const FeedApp = (() => {
     heroPost?.classList.add("is-empty");
   }
 
+  function renderPhotoCarousel(items) {
+    if (!photoCarousel || !photoCarouselTrack || !photoCarouselDots) return;
+    const photos = (Array.isArray(items) ? items : [])
+      .map((item) => item.image_url || item.file_url || item.file || "")
+      .filter(Boolean);
 
+    if (!photos.length) {
+      heroPost?.classList.add("is-empty");
+      photoCarouselTrack.innerHTML = "";
+      photoCarouselDots.innerHTML = "";
+      return;
+    }
+
+    heroPost?.classList.remove("is-empty");
+    heroPost?.classList.add("is-image", "post--photo-carousel");
+    photoCarouselTrack.innerHTML = photos
+      .map((url, idx) => (
+        `<div class="photo-carousel__slide">` +
+        `<img src="${escapeHtml(url)}" alt="" ` +
+        `loading="${idx === 0 ? "eager" : "lazy"}" ` +
+        `fetchpriority="${idx === 0 ? "high" : "auto"}" decoding="async" />` +
+        `</div>`
+      ))
+      .join("");
+    photoCarouselDots.innerHTML = photos
+      .map((_, idx) => (
+        `<button class="photo-carousel__dot${idx === 0 ? " is-active" : ""}" ` +
+        `type="button" aria-label="Slide ${idx + 1}" data-slide="${idx}"></button>`
+      ))
+      .join("");
+
+    const dots = Array.from(
+      photoCarouselDots.querySelectorAll(".photo-carousel__dot")
+    );
+    const setActive = () => {
+      const width = photoCarouselTrack.clientWidth || 1;
+      const idx = Math.round(photoCarouselTrack.scrollLeft / width);
+      dots.forEach((dot, dotIdx) => {
+        dot.classList.toggle("is-active", dotIdx === idx);
+      });
+    };
+    photoCarouselTrack.addEventListener("scroll", setActive, { passive: true });
+    dots.forEach((dot) => {
+      dot.addEventListener("click", () => {
+        const idx = Number(dot.dataset.slide || 0);
+        photoCarouselTrack.scrollTo({
+          left: idx * photoCarouselTrack.clientWidth,
+          behavior: "smooth",
+        });
+      });
+    });
+    setActive();
+  }
+
+  async function loadPhotoCarousel() {
+    if (!photoCarousel) return;
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const res = await fetch("/api/carousel/", {
+          credentials: "include",
+          cache: "default",
+        });
+        if (!res.ok) throw new Error(`carousel api ${res.status}`);
+        const items = await res.json();
+        renderPhotoCarousel(items);
+        return;
+      } catch {
+        if (attempt < 3) {
+          await sleep(400 * attempt);
+        }
+      }
+    }
+
+    heroPost?.classList.add("is-empty");
+  }
 
   function escapeHtml(s) {
     return String(s)
@@ -1266,7 +1344,7 @@ const FeedApp = (() => {
     warmHlsLibrary();
 
     const mePromise = Auth.me();
-    const heroLoadPromise = loadHeroVideo().catch(() => {});
+    const heroLoadPromise = loadPhotoCarousel().catch(() => {});
 
     setupActiveAutoplay();
     setupNearbyVideoPreload();

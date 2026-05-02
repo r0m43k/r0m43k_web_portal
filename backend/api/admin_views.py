@@ -9,14 +9,23 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import HeroVideo, MediaJob, UploadSession, Video, VideoComment
+from .models import (
+    HeroVideo,
+    MediaJob,
+    PhotoCarouselItem,
+    UploadSession,
+    Video,
+    VideoComment,
+)
 from .serializers import (
     AdminHeroVideoSerializer,
     AdminMediaJobSerializer,
+    AdminPhotoCarouselItemSerializer,
     AdminUploadSessionSerializer,
     AdminVideoCommentSerializer,
     AdminVideoSerializer,
 )
+from .utils.images import optimize_carousel_image
 
 
 class AdminVideoListCreateView(APIView):
@@ -363,3 +372,147 @@ class AdminHeroCurrentView(APIView):
             context={"request": request},
         ).data
         return Response(data, status=status.HTTP_200_OK)
+
+
+class AdminPhotoCarouselListCreateView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request):
+        qs = PhotoCarouselItem.objects.order_by(
+            "display_order",
+            "-created_at",
+            "-id",
+        )
+        data = AdminPhotoCarouselItemSerializer(
+            qs,
+            many=True,
+            context={"request": request},
+        ).data
+        return Response(data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        files = request.FILES.getlist("files")
+        if not files:
+            single = request.FILES.get("file")
+            files = [single] if single else []
+        if not files:
+            return Response(
+                {"detail": "files required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        bad_files = [
+            file.name
+            for file in files
+            if Path(file.name).suffix.lower()
+            not in {".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif"}
+        ]
+        if bad_files:
+            return Response(
+                {"detail": f"unsupported image files: {bad_files}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        title = (request.data.get("title") or "").strip()
+        created = []
+        with transaction.atomic():
+            for idx, file in enumerate(files, start=1):
+                item_title = title
+                if len(files) > 1 and item_title:
+                    item_title = f"{item_title} {idx}"
+                created.append(
+                    PhotoCarouselItem.objects.create(
+                        title=item_title,
+                        image=optimize_carousel_image(file),
+                        is_active=True,
+                    )
+                )
+
+        data = AdminPhotoCarouselItemSerializer(
+            created,
+            many=True,
+            context={"request": request},
+        ).data
+        return Response({"items": data}, status=status.HTTP_201_CREATED)
+
+
+class AdminPhotoCarouselOrderView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        item_ids = request.data.get("item_ids")
+        if not isinstance(item_ids, list) or not item_ids:
+            return Response(
+                {"detail": "item_ids list required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        normalized_ids = []
+        seen = set()
+        for raw_id in item_ids:
+            try:
+                item_id = int(raw_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "item_ids must contain integer IDs"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if item_id in seen:
+                continue
+            normalized_ids.append(item_id)
+            seen.add(item_id)
+
+        existing_ids = set(
+            PhotoCarouselItem.objects.filter(
+                pk__in=normalized_ids
+            ).values_list("id", flat=True)
+        )
+        missing = [
+            item_id
+            for item_id in normalized_ids
+            if item_id not in existing_ids
+        ]
+        if missing:
+            return Response(
+                {"detail": f"unknown carousel item ids: {missing}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            for order, item_id in enumerate(normalized_ids, start=1):
+                PhotoCarouselItem.objects.filter(pk=item_id).update(
+                    display_order=order
+                )
+
+            tail_ids = list(
+                PhotoCarouselItem.objects.exclude(pk__in=normalized_ids)
+                .order_by("display_order", "-created_at", "-id")
+                .values_list("id", flat=True)
+            )
+            next_order = len(normalized_ids) + 1
+            for item_id in tail_ids:
+                PhotoCarouselItem.objects.filter(pk=item_id).update(
+                    display_order=next_order
+                )
+                next_order += 1
+
+        ordered_ids = list(
+            PhotoCarouselItem.objects.order_by(
+                "display_order",
+                "-created_at",
+                "-id",
+            ).values_list("id", flat=True)
+        )
+        return Response(
+            {"ok": True, "item_ids": ordered_ids},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminPhotoCarouselItemDetailView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def delete(self, request, item_id):
+        item = get_object_or_404(PhotoCarouselItem, pk=item_id)
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

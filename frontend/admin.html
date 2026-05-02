@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Video Admin</title>
-  <link rel="stylesheet" href="/css/main.css?v=20260502-3" />
+  <link rel="stylesheet" href="/css/main.css?v=20260502-4" />
 </head>
 <body class="admin-page">
   <header class="topbar">
@@ -67,25 +67,26 @@
     </section>
 
     <section class="admin__panel">
-      <h2 class="admin__title">Hero Media</h2>
+      <h2 class="admin__title">Photo Carousel</h2>
       <p class="admin__helper">
-        Upload image or video for the first screen. New upload replaces current hero.
+        Upload one or many photos for the first feed card. Drag photos to reorder.
       </p>
-      <form id="heroUploadForm" class="admin__upload" enctype="multipart/form-data">
+      <form id="carouselUploadForm" class="admin__upload" enctype="multipart/form-data">
         <input
           class="admin__input"
           name="title"
-          placeholder="Hero title (optional)"
+          placeholder="Carousel title prefix (optional)"
           maxlength="200"
           autocomplete="off"
         />
-        <input class="admin__file" type="file" name="file" accept="video/*,image/*" required />
+        <input class="admin__file" type="file" name="files" accept="image/*" multiple required />
         <div class="admin__actions">
-          <button class="btn btn--primary" id="heroUploadBtn" type="submit">Upload Hero</button>
+          <button class="btn btn--primary" id="carouselUploadBtn" type="submit">Upload Photos</button>
+          <button class="btn btn--ghost" id="saveCarouselOrderBtn" type="button">Save Photo Order</button>
         </div>
       </form>
-      <div class="admin__helper" id="heroStatus">Loading hero media...</div>
-      <div class="admin__hero-preview" id="heroPreview"></div>
+      <div class="admin__helper" id="carouselStatus">Loading carousel photos...</div>
+      <div class="admin__carousel-list" id="carouselList"></div>
     </section>
 
     <section class="admin__panel">
@@ -115,6 +116,6 @@
   </main>
 
   <script src="/js/auth.js?v=20260502-1"></script>
-  <script src="/js/admin.js?v=20260225-4"></script>
+  <script src="/js/admin.js?v=20260502-5"></script>
 </body>
 </html>

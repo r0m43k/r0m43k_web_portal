@@ -1,6 +1,13 @@
 from rest_framework import serializers
 
-from .models import HeroVideo, MediaJob, UploadSession, Video, VideoComment
+from .models import (
+    HeroVideo,
+    MediaJob,
+    PhotoCarouselItem,
+    UploadSession,
+    Video,
+    VideoComment,
+)
 from .utils.media import hls_manifest_path, hls_manifest_url
 
 
@@ -149,6 +156,31 @@ class AdminHeroVideoSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get("request")
         return hls_manifest_url(request, "hero", obj.pk)
+
+
+class PhotoCarouselItemSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PhotoCarouselItem
+        fields = [
+            "id",
+            "title",
+            "image_url",
+            "display_order",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_image_url(self, obj):
+        if not obj.image:
+            return None
+        return _abs_url(self.context.get("request"), obj.image.url)
+
+
+class AdminPhotoCarouselItemSerializer(PhotoCarouselItemSerializer):
+    pass
 
 
 class VideoCommentSerializer(serializers.ModelSerializer):

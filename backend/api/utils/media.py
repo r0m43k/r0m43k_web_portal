@@ -193,7 +193,7 @@ def hls_manifest_url(request, kind: str, object_id: int) -> str:
 
 
 def hls_profile_version() -> str:
-    return os.getenv("HLS_PROFILE_VERSION") or "mobile-v2"
+    return os.getenv("HLS_PROFILE_VERSION") or "mobile-v3"
 
 
 def faststart_inplace(path: str, should_abort=None) -> bool:
@@ -313,11 +313,11 @@ def _generate_hls(
     out_dir.mkdir(parents=True, exist_ok=True)
     segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "1")
     height_main = int(os.getenv("HLS_HEIGHT") or "1080")
-    height_low = int(os.getenv("HLS_HEIGHT_LOW") or "540")
+    height_low = int(os.getenv("HLS_HEIGHT_LOW") or "720")
     maxrate_main = os.getenv("HLS_MAXRATE") or "6000k"
     bufsize_main = os.getenv("HLS_BUFSIZE") or "12000k"
-    maxrate_low = os.getenv("HLS_MAXRATE_LOW") or "1800k"
-    bufsize_low = os.getenv("HLS_BUFSIZE_LOW") or "3600k"
+    maxrate_low = os.getenv("HLS_MAXRATE_LOW") or "2400k"
+    bufsize_low = os.getenv("HLS_BUFSIZE_LOW") or "4800k"
     crf_main = os.getenv("HLS_CRF") or "22"
     crf_low = os.getenv("HLS_CRF_LOW") or "24"
     preset = os.getenv("HLS_PRESET") or "veryfast"

@@ -6,7 +6,7 @@
   <title>r0m43k</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preload" href="https://cdn.jsdelivr.net/npm/hls.js@1.5.8" as="script" crossorigin />
-  <link rel="stylesheet" href="/css/main.css?v=20260502-3" />
+  <link rel="stylesheet" href="/css/main.css?v=20260502-4" />
 </head>
 <body class="feed-page is-guest">
 
@@ -22,16 +22,10 @@
   <main class="feed" id="feed" aria-live="polite">
 
     <section class="post post--hero" id="heroPost">
-      <video
-        id="heroVideo"
-        class="post__video"
-        autoplay
-        muted
-        loop
-        playsinline
-        preload="auto"
-        fetchpriority="high"
-      ></video>
+      <div class="photo-carousel" id="photoCarousel" aria-label="Photo carousel">
+        <div class="photo-carousel__track" id="photoCarouselTrack"></div>
+        <div class="photo-carousel__dots" id="photoCarouselDots"></div>
+      </div>
 
       <div class="post__ui">
         <div class="post__meta">
@@ -77,6 +71,6 @@
   </div>
 
   <script src="/js/auth.js?v=20260502-1"></script>
-  <script src="/js/app.js?v=20260502-4"></script>
+  <script src="/js/app.js?v=20260502-5"></script>
 </body>
 </html>
