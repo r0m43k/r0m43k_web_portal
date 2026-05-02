@@ -26,7 +26,8 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Queued HLS rebuilds: {queued}, skipped current/active: {skipped}."
+                "Queued HLS rebuilds: "
+                f"{queued}, skipped current/active: {skipped}."
             )
         )
 
