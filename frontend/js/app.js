@@ -11,7 +11,7 @@ const FeedApp = (() => {
   const commentForm = document.getElementById("commentForm");
   const commentHint = document.getElementById("commentHint");
 
-  let nextUrl = "/api/videos/?limit=6&offset=0";
+  let nextUrl = "/api/videos/?limit=18&offset=0";
   let loading = false;
   let done = false;
 
@@ -20,6 +20,7 @@ const FeedApp = (() => {
   let currentUser = null;
   let activeCommentVideoId = null;
   let hlsLibraryPromise = null;
+  const warmedHlsUrls = new Set();
 
   const HLS_JS_URL = "https://cdn.jsdelivr.net/npm/hls.js@1.5.8";
   const QUALITY_PREF_KEY = "feedQualityPreference";
@@ -423,6 +424,60 @@ const FeedApp = (() => {
     return hlsLibraryPromise;
   }
 
+  function resolveMediaUrl(baseUrl, value) {
+    try {
+      return new URL(value, baseUrl).href;
+    } catch {
+      return value;
+    }
+  }
+
+  async function fetchTextWarm(url) {
+    const res = await fetch(url, {
+      credentials: "same-origin",
+      cache: "force-cache",
+    });
+    if (!res.ok) throw new Error("warm fetch " + res.status);
+    return res.text();
+  }
+
+  async function warmHlsUrl(hlsUrl) {
+    if (!hlsUrl || warmedHlsUrls.has(hlsUrl)) return;
+    warmedHlsUrls.add(hlsUrl);
+
+    try {
+      const manifestUrl = new URL(hlsUrl, window.location.origin).href;
+      const manifest = await fetchTextWarm(manifestUrl);
+      const mediaPlaylists = manifest
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#") && line.endsWith(".m3u8"));
+
+      const playlistUrl = mediaPlaylists.length
+        ? resolveMediaUrl(manifestUrl, mediaPlaylists[mediaPlaylists.length - 1])
+        : manifestUrl;
+      const playlist = mediaPlaylists.length
+        ? await fetchTextWarm(playlistUrl)
+        : manifest;
+
+      const segments = playlist
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#") && !line.endsWith(".m3u8"))
+        .slice(0, 4)
+        .map((line) => resolveMediaUrl(playlistUrl, line));
+
+      await Promise.all(
+        segments.map((segmentUrl) =>
+          fetch(segmentUrl, {
+            credentials: "same-origin",
+            cache: "force-cache",
+          }).catch(() => {})
+        )
+      );
+    } catch {}
+  }
+
   function warmHlsLibrary() {
     const probe = document.createElement("video");
     if (!canPlayHls(probe)) {
@@ -564,12 +619,26 @@ const FeedApp = (() => {
     return { updateFromVideo: videoEl.__qualityUpdater };
   }
 
-  function attachStreamSource(videoEl, src, hlsUrl, qualityEl, qualitySelect) {
+  function attachStreamSource(
+    videoEl,
+    src,
+    hlsUrl,
+    qualityEl,
+    qualitySelect,
+    shouldPlay = true
+  ) {
     if (!videoEl) return;
-    if (videoEl.dataset.loaded === "1") return;
+    if (videoEl.dataset.loaded === "1") {
+      if (shouldPlay) {
+        videoEl.dataset.pendingPlay = "1";
+        videoEl.play().catch(() => {});
+      }
+      return;
+    }
     if (!src && !hlsUrl) return;
 
     videoEl.dataset.loaded = "1";
+    if (shouldPlay) videoEl.dataset.pendingPlay = "1";
     videoEl.preload = "auto";
     ensureLoopPlayback(videoEl);
     const { updateFromVideo } = bindQualityTracking(videoEl, qualityEl);
@@ -586,8 +655,13 @@ const FeedApp = (() => {
 
     const markFirstFrame = () => {
       firstFrameSeen = true;
+      delete videoEl.dataset.pendingPlay;
       clearStartupWatchdog();
     };
+
+    const shouldStartPlayback = () => (
+      shouldPlay || videoEl.dataset.pendingPlay === "1"
+    );
 
     const armStartupWatchdog = () => {
       clearStartupWatchdog();
@@ -614,7 +688,7 @@ const FeedApp = (() => {
       videoEl.src = src;
       videoEl.load();
       videoEl.addEventListener("loadedmetadata", updateFromVideo, { once: true });
-      videoEl.play().catch(() => {});
+      if (shouldStartPlayback()) videoEl.play().catch(() => {});
     };
 
     const setupHlsJs = (Hls) => {
@@ -622,9 +696,9 @@ const FeedApp = (() => {
       const hls = new Hls({
         autoStartLoad: false,
         startLevel: -1,
-        maxBufferLength: 14,
-        maxMaxBufferLength: 24,
-        backBufferLength: 6,
+        maxBufferLength: 45,
+        maxMaxBufferLength: 90,
+        backBufferLength: 45,
         capLevelToPlayerSize: false,
         abrEwmaDefaultEstimate: 8000000,
         testBandwidth: false,
@@ -635,7 +709,7 @@ const FeedApp = (() => {
         if (hlsStarted) return;
         hlsStarted = true;
         hls.startLoad(-1);
-        videoEl.play().catch(() => {});
+        if (shouldStartPlayback()) videoEl.play().catch(() => {});
       };
       const updateFromLevelIndex = (idx) => {
         const level = hls.levels?.[idx];
@@ -719,7 +793,7 @@ const FeedApp = (() => {
       videoEl.load();
       videoEl.addEventListener("loadedmetadata", updateFromVideo, { once: true });
       armStartupWatchdog();
-      videoEl.play().catch(() => {});
+      if (shouldStartPlayback()) videoEl.play().catch(() => {});
       return;
     }
 
@@ -728,6 +802,7 @@ const FeedApp = (() => {
       videoEl.src = src;
       videoEl.load();
       videoEl.addEventListener("loadedmetadata", updateFromVideo, { once: true });
+      if (shouldStartPlayback()) videoEl.play().catch(() => {});
     }
   }
 
@@ -825,6 +900,21 @@ const FeedApp = (() => {
       ?.closest(".post")
       ?.querySelector('[data-role="quality-select"]');
     attachStreamSource(videoEl, src, hlsUrl, qualityEl, qualitySelect);
+  }
+
+  function preloadVideoSource(videoEl, src, hlsUrl, qualityEl) {
+    const qualitySelect = videoEl
+      ?.closest(".post")
+      ?.querySelector('[data-role="quality-select"]');
+    warmHlsUrl(hlsUrl);
+    attachStreamSource(videoEl, src, hlsUrl, qualityEl, qualitySelect, false);
+  }
+
+  function preloadPostVideo(post) {
+    const videoEl = post?.querySelector(".post__video");
+    if (!videoEl || videoEl.dataset.loaded === "1") return;
+    const qualityEl = post.querySelector('[data-role="quality"]');
+    preloadVideoSource(videoEl, post.dataset.src, post.dataset.hls, qualityEl);
   }
 
   function createPost(v) {
@@ -956,7 +1046,7 @@ const FeedApp = (() => {
       try {
         const res = await fetch(normalizeApiUrl(nextUrl), {
           credentials: "include",
-          cache: "no-cache",
+          cache: "default",
         });
         if (!res.ok) throw new Error("API " + res.status);
 
@@ -996,6 +1086,7 @@ const FeedApp = (() => {
       for (const v of items) {
         const post = createPost(v);
         feedEl.appendChild(post);
+        preloadPostVideo(post);
         postsCount++;
       }
 
@@ -1067,10 +1158,10 @@ const FeedApp = (() => {
           continue;
         }
         const qualityEl = post.querySelector('[data-role="quality"]');
-        ensureVideoSource(video, post.dataset.src, post.dataset.hls, qualityEl);
+        preloadVideoSource(video, post.dataset.src, post.dataset.hls, qualityEl);
         io.unobserve(post);
       }
-    }, { rootMargin: "2400px 0px", threshold: 0.01 });
+    }, { rootMargin: "6000px 0px", threshold: 0.01 });
 
     const observePost = (post) => {
       if (!post || post.dataset.preloadObserved === "1") return;
@@ -1096,7 +1187,7 @@ const FeedApp = (() => {
           loadNextPage().catch(() => {});
         }, 1200);
       }
-    }, { rootMargin: "1500px 0px" });
+    }, { rootMargin: "6000px 0px" });
 
     io.observe(sentinel);
   }
