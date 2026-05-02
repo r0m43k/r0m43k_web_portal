@@ -911,7 +911,7 @@ const FeedApp = (() => {
     heroPost?.classList.add("is-image", "post--photo-carousel");
     photoCarouselTrack.innerHTML = photos
       .map((url, idx) => (
-        `<div class="photo-carousel__slide">` +
+        `<div class="photo-carousel__slide${idx === 0 ? " is-active" : ""}">` +
         `<img src="${escapeHtml(url)}" alt="" ` +
         `loading="${idx === 0 ? "eager" : "lazy"}" ` +
         `fetchpriority="${idx === 0 ? "high" : "auto"}" decoding="async" />` +
@@ -928,24 +928,43 @@ const FeedApp = (() => {
     const dots = Array.from(
       photoCarouselDots.querySelectorAll(".photo-carousel__dot")
     );
-    const setActive = () => {
-      const width = photoCarouselTrack.clientWidth || 1;
-      const idx = Math.round(photoCarouselTrack.scrollLeft / width);
+    const slides = Array.from(
+      photoCarouselTrack.querySelectorAll(".photo-carousel__slide")
+    );
+    let activeIdx = 0;
+    let pointerStartX = 0;
+    let pointerStartY = 0;
+
+    const showSlide = (idx) => {
+      if (!slides.length) return;
+      activeIdx = (idx + slides.length) % slides.length;
+      slides.forEach((slide, slideIdx) => {
+        slide.classList.toggle("is-active", slideIdx === activeIdx);
+      });
       dots.forEach((dot, dotIdx) => {
-        dot.classList.toggle("is-active", dotIdx === idx);
+        dot.classList.toggle("is-active", dotIdx === activeIdx);
       });
     };
-    photoCarouselTrack.addEventListener("scroll", setActive, { passive: true });
+
     dots.forEach((dot) => {
       dot.addEventListener("click", () => {
         const idx = Number(dot.dataset.slide || 0);
-        photoCarouselTrack.scrollTo({
-          left: idx * photoCarouselTrack.clientWidth,
-          behavior: "smooth",
-        });
+        showSlide(idx);
       });
     });
-    setActive();
+
+    photoCarouselTrack.addEventListener("pointerdown", (e) => {
+      pointerStartX = e.clientX;
+      pointerStartY = e.clientY;
+    });
+    photoCarouselTrack.addEventListener("pointerup", (e) => {
+      const dx = e.clientX - pointerStartX;
+      const dy = e.clientY - pointerStartY;
+      if (Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy)) return;
+      showSlide(activeIdx + (dx < 0 ? 1 : -1));
+    });
+
+    showSlide(0);
   }
 
   async function loadPhotoCarousel() {
@@ -991,7 +1010,9 @@ const FeedApp = (() => {
     const qualitySelect = videoEl
       ?.closest(".post")
       ?.querySelector('[data-role="quality-select"]');
-    warmHlsUrl(hlsUrl, priority <= 0 ? 4 : 2);
+    if (canPlayHls(videoEl)) {
+      warmHlsUrl(hlsUrl, priority <= 0 ? 3 : 1);
+    }
     attachStreamSource(videoEl, src, hlsUrl, qualityEl, qualitySelect, false);
   }
 
@@ -1226,7 +1247,14 @@ const FeedApp = (() => {
       for (const v of items) {
         const post = createPost(v);
         feedEl.appendChild(post);
-        if (postsCount < 3) enqueuePostPreload(post, postsCount);
+        if (postsCount === 0) {
+          const video = post.querySelector(".post__video");
+          const qualityEl = post.querySelector('[data-role="quality"]');
+          ensureVideoSource(video, post.dataset.src, post.dataset.hls, qualityEl);
+          video?.play?.().catch(() => {});
+        } else if (postsCount < 3) {
+          enqueuePostPreload(post, postsCount);
+        }
         postsCount++;
       }
       if (activePost) schedulePreloadAround(activePost);
