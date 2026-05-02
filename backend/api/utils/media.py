@@ -307,7 +307,7 @@ def _generate_hls(
         return False
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "4")
+    segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "1")
     height_main = int(os.getenv("HLS_HEIGHT") or "1080")
     height_low = int(os.getenv("HLS_HEIGHT_LOW") or "720")
     maxrate_main = os.getenv("HLS_MAXRATE") or "6000k"

@@ -458,15 +458,17 @@ const FeedApp = (() => {
 
   function getQualityPreference() {
     try {
-      return localStorage.getItem(QUALITY_PREF_KEY) || "low";
+      const saved = localStorage.getItem(QUALITY_PREF_KEY);
+      if (!saved || saved === "low") return "high";
+      return saved;
     } catch {
-      return "low";
+      return "high";
     }
   }
 
   function setQualityPreference(value) {
     try {
-      localStorage.setItem(QUALITY_PREF_KEY, value || "low");
+      localStorage.setItem(QUALITY_PREF_KEY, value || "high");
     } catch {}
   }
 
@@ -568,7 +570,7 @@ const FeedApp = (() => {
     if (!src && !hlsUrl) return;
 
     videoEl.dataset.loaded = "1";
-    videoEl.preload = "metadata";
+    videoEl.preload = "auto";
     ensureLoopPlayback(videoEl);
     const { updateFromVideo } = bindQualityTracking(videoEl, qualityEl);
     let startupTimer = null;
@@ -592,7 +594,7 @@ const FeedApp = (() => {
       startupTimer = setTimeout(() => {
         if (firstFrameSeen) return;
         fallbackToMp4();
-      }, 7000);
+      }, 3000);
     };
 
     videoEl.addEventListener("loadeddata", markFirstFrame, { once: true });
@@ -619,12 +621,13 @@ const FeedApp = (() => {
       if (!Hls?.isSupported?.()) return false;
       const hls = new Hls({
         autoStartLoad: false,
-        startLevel: 0,
-        maxBufferLength: 8,
-        maxMaxBufferLength: 12,
-        backBufferLength: 4,
-        capLevelToPlayerSize: true,
-        abrEwmaDefaultEstimate: 450000,
+        startLevel: -1,
+        maxBufferLength: 14,
+        maxMaxBufferLength: 24,
+        backBufferLength: 6,
+        capLevelToPlayerSize: false,
+        abrEwmaDefaultEstimate: 8000000,
+        testBandwidth: false,
       });
       videoEl.__hls = hls;
       let hlsStarted = false;
@@ -681,7 +684,7 @@ const FeedApp = (() => {
       if (qualitySelect && qualitySelect.dataset.bound !== "1") {
         qualitySelect.dataset.bound = "1";
         qualitySelect.addEventListener("change", () => {
-          const value = qualitySelect.value || "low";
+          const value = qualitySelect.value || "high";
           setQualityPreference(value === "auto" ? "auto" : value);
           applyHlsQuality(hls, qualitySelect, qualityEl, value);
         });
@@ -736,7 +739,7 @@ const FeedApp = (() => {
       try {
         const res = await fetch("/api/hero/", {
           credentials: "include",
-          cache: "no-store",
+          cache: "no-cache",
         });
         if (!res.ok) {
           if (res.status === 404) {
@@ -779,7 +782,7 @@ const FeedApp = (() => {
         heroVideo.loop = true;
         heroVideo.muted = true;
         heroVideo.autoplay = true;
-        heroVideo.preload = "metadata";
+        heroVideo.preload = "auto";
         heroVideo.setAttribute("playsinline", "");
 
         attachVideoLoader(heroVideo, heroLoader);
@@ -839,7 +842,7 @@ const FeedApp = (() => {
     post.dataset.id = v.id;
 
     post.innerHTML = `
-      <video class="post__video" playsinline muted preload="metadata" loop></video>
+      <video class="post__video" playsinline muted preload="auto" fetchpriority="high" loop></video>
       <div class="seek-indicator" aria-hidden="true">
         <div class="seek-petal seek-petal--left">
           <div class="seek-petal__icon">⏪</div>
@@ -859,7 +862,7 @@ const FeedApp = (() => {
           </div>
           <div class="post__quality" data-role="quality">Качество: авто</div>
           <select class="quality-select" data-role="quality-select" aria-label="Качество видео" disabled>
-            <option value="low">480p</option>
+            <option value="high">HD</option>
           </select>
         </div>
 
@@ -953,7 +956,7 @@ const FeedApp = (() => {
       try {
         const res = await fetch(normalizeApiUrl(nextUrl), {
           credentials: "include",
-          cache: "no-store",
+          cache: "no-cache",
         });
         if (!res.ok) throw new Error("API " + res.status);
 
@@ -1067,7 +1070,7 @@ const FeedApp = (() => {
         ensureVideoSource(video, post.dataset.src, post.dataset.hls, qualityEl);
         io.unobserve(post);
       }
-    }, { rootMargin: "900px 0px", threshold: 0.01 });
+    }, { rootMargin: "2400px 0px", threshold: 0.01 });
 
     const observePost = (post) => {
       if (!post || post.dataset.preloadObserved === "1") return;
@@ -1105,6 +1108,8 @@ const FeedApp = (() => {
   }
 
   async function boot() {
+    warmHlsLibrary();
+
     const mePromise = Auth.me();
     const heroLoadPromise = loadHeroVideo().catch(() => {});
 
@@ -1112,8 +1117,6 @@ const FeedApp = (() => {
     setupNearbyVideoPreload();
     setupInfiniteScroll();
     setupCommentsModal();
-    warmHlsLibrary();
-
     // IMPORTANT: мы можем начать подгрузку сразу, но это не мешает —
     // hero остаётся первым экраном, а посты просто появятся ниже.
     const firstPagePromise = loadNextPage().catch(async () => {

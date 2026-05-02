@@ -43,7 +43,9 @@ services:
     volumes:
       - media:/app/media
       - static:/app/staticfiles
-    command: python manage.py process_media_jobs
+    command: >
+      sh -c "python manage.py enqueue_media_rebuild &&
+             python manage.py process_media_jobs"
     restart: unless-stopped
   frontend:
     image: ${DOCKER_USERNAME}/r0m43k_web_portal-frontend:latest

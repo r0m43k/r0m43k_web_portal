@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>r0m43k</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/hls.js@1.5.8" as="script" crossorigin />
   <link rel="stylesheet" href="/css/main.css?v=20260502-3" />
 </head>
 <body class="feed-page is-guest">
@@ -29,6 +30,7 @@
         loop
         playsinline
         preload="auto"
+        fetchpriority="high"
       ></video>
 
       <div class="post__ui">
@@ -75,6 +77,6 @@
   </div>
 
   <script src="/js/auth.js?v=20260502-1"></script>
-  <script src="/js/app.js?v=20260502-3"></script>
+  <script src="/js/app.js?v=20260502-4"></script>
 </body>
 </html>
