@@ -3,7 +3,7 @@ import os
 from django.core.management.base import BaseCommand
 
 from api.models import MediaJob, Video
-from api.utils.media import hls_manifest_path
+from api.utils.media import hls_manifest_path, hls_profile_version
 
 
 class Command(BaseCommand):
@@ -59,6 +59,13 @@ class Command(BaseCommand):
     def _manifest_is_current(self, manifest, target_duration):
         if not manifest.exists():
             return False
+        profile_path = manifest.parent / ".profile"
+        try:
+            profile = profile_path.read_text(encoding="utf-8").strip()
+        except OSError:
+            return False
+        if profile != hls_profile_version():
+            return False
         try:
             text = manifest.read_text(encoding="utf-8", errors="ignore")
         except OSError:
@@ -79,7 +86,23 @@ class Command(BaseCommand):
         ]
         if child_playlists:
             return all(
-                self._manifest_is_current(child, target_duration)
+                self._playlist_duration_is_current(child, target_duration)
                 for child in child_playlists
             )
+        return False
+
+    def _playlist_duration_is_current(self, manifest, target_duration):
+        if not manifest.exists():
+            return False
+        try:
+            text = manifest.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            return False
+        for line in text.splitlines():
+            if line.startswith("#EXT-X-TARGETDURATION:"):
+                try:
+                    duration = int(line.split(":", 1)[1].strip())
+                except ValueError:
+                    return False
+                return duration <= target_duration + 1
         return False

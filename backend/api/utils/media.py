@@ -192,6 +192,10 @@ def hls_manifest_url(request, kind: str, object_id: int) -> str:
     return request.build_absolute_uri(url) if request else url
 
 
+def hls_profile_version() -> str:
+    return os.getenv("HLS_PROFILE_VERSION") or "mobile-v2"
+
+
 def faststart_inplace(path: str, should_abort=None) -> bool:
     if not path:
         return False
@@ -309,11 +313,11 @@ def _generate_hls(
     out_dir.mkdir(parents=True, exist_ok=True)
     segment_seconds = int(os.getenv("HLS_SEGMENT_SECONDS") or "1")
     height_main = int(os.getenv("HLS_HEIGHT") or "1080")
-    height_low = int(os.getenv("HLS_HEIGHT_LOW") or "720")
+    height_low = int(os.getenv("HLS_HEIGHT_LOW") or "540")
     maxrate_main = os.getenv("HLS_MAXRATE") or "6000k"
     bufsize_main = os.getenv("HLS_BUFSIZE") or "12000k"
-    maxrate_low = os.getenv("HLS_MAXRATE_LOW") or "3000k"
-    bufsize_low = os.getenv("HLS_BUFSIZE_LOW") or "6000k"
+    maxrate_low = os.getenv("HLS_MAXRATE_LOW") or "1800k"
+    bufsize_low = os.getenv("HLS_BUFSIZE_LOW") or "3600k"
     crf_main = os.getenv("HLS_CRF") or "22"
     crf_low = os.getenv("HLS_CRF_LOW") or "24"
     preset = os.getenv("HLS_PRESET") or "veryfast"
@@ -536,6 +540,14 @@ def _generate_hls(
         ok = _run_ffmpeg(cmd, mp4_path)
     if not ok:
         return False
+
+    try:
+        (out_dir / ".profile").write_text(
+            hls_profile_version(),
+            encoding="utf-8",
+        )
+    except OSError:
+        logger.debug("hls profile marker write failed", exc_info=True)
 
     _ensure_not_canceled(should_abort)
     _report(progress_callback, 95, "hls:finalizing")
