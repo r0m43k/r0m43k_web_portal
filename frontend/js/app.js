@@ -11,7 +11,7 @@ const FeedApp = (() => {
   const commentForm = document.getElementById("commentForm");
   const commentHint = document.getElementById("commentHint");
 
-  let nextUrl = "/api/videos/?limit=12&offset=0";
+  let nextUrl = "/api/videos/?limit=6&offset=0";
   let loading = false;
   let done = false;
 
